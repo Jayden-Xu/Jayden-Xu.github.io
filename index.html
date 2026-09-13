@@ -74,7 +74,10 @@
     font-family:var(--font-script); font-size:clamp(3.2rem, 8vw, 4.6rem); font-weight:600;
     text-shadow: 0 0 30px rgba(232,150,61,0.3);
   }
-  .hero-slogan{ color:var(--text-dim); font-size:1.15rem; margin:0; }
+  .hero-slogan{ color:var(--text-dim); font-size:1.15rem; margin:0; font-family:var(--font-mono); }
+  .hero-cursor{ display:inline-block; margin-left:2px; color:var(--accent-warm); animation:blink 1s step-end infinite; }
+  @keyframes blink{ 50%{ opacity:0; } }
+  @media (prefers-reduced-motion: reduce){ .hero-cursor{ animation:none; } }
 
   /* ABOUT */
   .about-text{ color:var(--text); font-size:1rem; margin:0 0 20px 0; }
@@ -155,7 +158,7 @@
   <section class="section" id="intro" data-label="Home">
     <div class="section-inner">
       <h1 class="hero-name"><span class="hero-name-en">Jayden Xu</span></h1>
-      <p class="hero-slogan">Optimize everything.</p>
+      <p class="hero-slogan"><span id="typedSlogan"></span><span class="hero-cursor">|</span></p>
     </div>
   </section>
 
@@ -359,6 +362,20 @@
     });
   });
 
+  // ---- typewriter hero slogan ----
+  (function(){
+    var el = document.getElementById('typedSlogan');
+    if (!el) return;
+    var text = 'Optimize everything.';
+    if (reduceMotion){ el.textContent = text; return; }
+    var i = 0;
+    (function tick(){
+      el.textContent = text.slice(0, i);
+      i++;
+      if (i <= text.length){ setTimeout(tick, 55); }
+    })();
+  })();
+
   // ---- background neural-network: doubles as the section nav ----
   var canvas = document.getElementById('netBg');
   var ctx = canvas.getContext('2d');
@@ -366,6 +383,36 @@
   var accentCool = [95, 160, 201];
   var accentWarm = [232, 150, 61];
   var W, H, layerY, layers, edges;
+
+  // The cursor acts as a second, independent light source — nodes and
+  // edges near it light up the same way scroll-driven ones do. null when
+  // the pointer hasn't moved yet or has left the window (touch devices
+  // simply never set this, so the effect is inert there).
+  var mouseX = null, mouseY = null;
+  var CURSOR_REACH = 110;
+  window.addEventListener('mousemove', function(e){
+    mouseX = e.clientX; mouseY = e.clientY;
+    if (reduceMotion && layers){ draw(); }
+  });
+  window.addEventListener('mouseleave', function(){
+    mouseX = null; mouseY = null;
+    if (reduceMotion && layers){ draw(); }
+  });
+  function cursorWeight(x, y){
+    if (mouseX === null) return 0;
+    var d = Math.hypot(x - mouseX, y - mouseY);
+    return Math.max(0, 1 - d / CURSOR_REACH);
+  }
+  // Parametric closest point from (px,py) to segment (ax,ay)-(bx,by), used
+  // to light up only the point on a wire nearest the cursor rather than
+  // the whole line.
+  function closestOnSegment(px, py, ax, ay, bx, by){
+    var abx = bx - ax, aby = by - ay;
+    var lenSq = abx * abx + aby * aby || 1;
+    var t = Math.max(0, Math.min(1, ((px - ax) * abx + (py - ay) * aby) / lenSq));
+    var cx = ax + abx * t, cy = ay + aby * t;
+    return { t: t, dist: Math.hypot(px - cx, py - cy) };
+  }
 
   function rand(min, max){ return min + Math.random() * (max - min); }
   function lerp(a, b, t){ return a + (b - a) * t; }
@@ -481,6 +528,9 @@
         glowAt(x, y, 60 * activity, 0.16 * activity);
       });
     }
+    if (mouseX !== null){
+      glowAt(mouseX, mouseY, 75, 0.15 * (0.8 + 0.2 * blink));
+    }
     ctx.globalCompositeOperation = 'source-over';
 
     // ---- pass 2: the wiring itself. A wire is not its own light source —
@@ -521,6 +571,8 @@
       var wA = layerWeight(e.li);
       var wB = layerWeight(e.li + 1);
       var isFlowEdge = e.li === baseLayer && activity > 0.03;
+      var cursorHit = mouseX !== null ? closestOnSegment(mouseX, mouseY, ax, ay, bx, by) : null;
+      var cursorGlow = cursorHit ? Math.max(0, 1 - cursorHit.dist / CURSOR_REACH) : 0;
 
       // always-present base wire, same as a fully idle edge
       ctx.strokeStyle = 'rgba(' + accentCool.join(',') + ',0.05)';
@@ -529,7 +581,7 @@
       ctx.lineTo(bx, by);
       ctx.stroke();
 
-      if (wA <= 0.02 && wB <= 0.02 && !isFlowEdge) return;
+      if (wA <= 0.02 && wB <= 0.02 && !isFlowEdge && cursorGlow <= 0.02) return;
 
       var reachPx = 85;
       var maxAlpha = 0.75 * (0.55 + 0.45 * blink);
@@ -547,12 +599,19 @@
         stops.push(warmStop(frac, 0.9 * activity));
         stops.push(warmStop(Math.min(1, frac + half), 0));
       }
+      if (cursorGlow > 0.02){
+        var cHalf = Math.min(0.16, 60 / len);
+        stops.push(warmStop(Math.max(0, cursorHit.t - cHalf), 0));
+        stops.push(warmStop(cursorHit.t, 0.85 * cursorGlow));
+        stops.push(warmStop(Math.min(1, cursorHit.t + cHalf), 0));
+      }
       paintGlowStub(ax, ay, bx, by, stops);
     });
 
     layers.forEach(function(nodes, li){
-      var w = layerWeight(li);
+      var lw = layerWeight(li);
       nodes.forEach(function(n){
+        var w = Math.max(lw, cursorWeight(n.x, n.y));
         ctx.save();
         if (w > 0.02){
           var r = lerp(1, 1.7, w) * n.r;
