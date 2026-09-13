@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Jayden Xu</title>
+<meta name="description" content="Jayden Xu (徐珮宇)" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2311141A'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='16' fill='%23E8963D' text-anchor='middle'%3EJX%3C/text%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#000000;
+    --text:#E9E6DF;
+    --text-dim:#9AA0AA;
+    --accent-warm:#E8963D;
+    --accent-cool:#5FA0C9;
+    --rule:#22262E;
+    --rule-soft:#14171C;
+    --font-mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --font-sans:'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; font-size:18px; }
+  @media (prefers-reduced-motion: reduce){ html{ scroll-behavior:auto; } }
+  body{
+    margin:0;
+    background-color:var(--bg);
+    background-image: radial-gradient(var(--rule-soft) 1px, transparent 1.4px);
+    background-size: 30px 30px;
+    color:var(--text);
+    font-family:var(--font-sans);
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{ color:var(--accent-cool); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+  a:focus-visible, button:focus-visible{ outline:2px solid var(--accent-warm); outline-offset:3px; }
+
+  .progress{ position:fixed; top:0; left:0; width:100%; height:2px; background:var(--rule); z-index:30; }
+  .progress-fill{ height:100%; background:var(--accent-warm); width:0%; }
+
+  #netBg{ position:fixed; inset:0; width:100%; height:100%; z-index:-1; pointer-events:none; }
+
+  .sectionLabels{
+    position:fixed; right:28px; top:10%; height:80%; z-index:20;
+    display:flex; flex-direction:column; justify-content:space-between; align-items:flex-end;
+  }
+  .sectionLabels button{
+    background:none; border:none; padding:2px 0; margin:0; cursor:pointer;
+    font-family:var(--font-mono); font-size:0.78rem; letter-spacing:0.05em; text-transform:uppercase;
+    color:var(--text-dim); opacity:0.4; transition:opacity .3s ease, color .3s ease;
+  }
+  @media (max-width:900px){ .sectionLabels{ display:none; } }
+
+  .section{ display:flex; align-items:center; justify-content:center; padding:120px 24px; }
+  .section + .section{ border-top:1px solid var(--rule); }
+  #intro.section{ min-height:92vh; padding-top:96px; padding-bottom:96px; }
+  .section-inner{ max-width:560px; width:100%; }
+
+  .idx{ font-family:var(--font-mono); color:var(--accent-warm); font-size:0.85rem; display:block; margin-bottom:14px; }
+
+  h2{
+    font-family:var(--font-mono); font-weight:600; font-size:1.25rem; color:var(--text);
+    letter-spacing:0.02em;
+    margin:0 0 44px 0; padding-bottom:16px; border-bottom:1px solid var(--rule);
+  }
+
+  /* COVER */
+  .hero-name{
+    font-family:var(--font-mono); font-size:clamp(2.1rem, 5.5vw, 3.1rem); font-weight:600;
+    margin:0 0 18px 0; letter-spacing:-0.01em;
+    text-shadow: 0 0 30px rgba(232,150,61,0.25);
+  }
+  .hero-slogan{ color:var(--text-dim); font-size:1.15rem; margin:0; }
+
+  /* EXPERIENCE */
+  .timeline{ position:relative; padding-left:24px; border-left:1px solid var(--rule); }
+  .role{ margin-bottom:40px; position:relative; }
+  .role:last-child{ margin-bottom:0; }
+  .role::before{ content:''; position:absolute; left:-29px; top:7px; width:9px; height:9px; border-radius:50%; background:var(--accent-warm); }
+  .role-title{ font-weight:500; font-size:1.1rem; }
+  .role-org{ color:var(--accent-cool); }
+  .role-meta{ font-family:var(--font-mono); font-size:0.8rem; color:var(--text-dim); margin-top:4px; }
+  .role-note{ font-family:var(--font-mono); font-size:0.85rem; color:var(--text-dim); margin-top:8px; }
+  .role-note::before{ content:'// '; color:var(--rule); }
+
+  /* PROJECTS */
+  .project{ padding:30px 0; border-bottom:1px solid var(--rule); }
+  .project:last-child{ border-bottom:none; }
+  .project-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+  .project-title{ font-family:var(--font-mono); font-size:1.1rem; font-weight:600; }
+  .project-dates{ font-family:var(--font-mono); font-size:0.8rem; color:var(--text-dim); white-space:nowrap; }
+  .project-note{ font-family:var(--font-mono); font-size:0.85rem; color:var(--text-dim); margin-top:8px; }
+  .project-note::before{ content:'// '; color:var(--rule); }
+  .project-link{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:38px; height:38px; border-radius:50%;
+    border:1px solid var(--rule); color:var(--text-dim);
+    margin-top:14px; transition: color .2s, border-color .2s;
+  }
+  .project-link:hover{ color:var(--accent-warm); border-color:var(--accent-warm); }
+  .project-link svg{ width:18px; height:18px; }
+
+  /* EDUCATION */
+  .edu-item{ padding:24px 0; border-bottom:1px solid var(--rule); }
+  .edu-item:last-child{ border-bottom:none; }
+  .edu-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+  .edu-school{ font-weight:500; }
+  .edu-degree{ color:var(--text-dim); font-size:0.92rem; margin-top:2px; }
+  .edu-dates{ font-family:var(--font-mono); font-size:0.8rem; color:var(--text-dim); white-space:nowrap; }
+
+  /* CONTACT */
+  .contact-icons{ display:flex; justify-content:center; align-items:center; gap:36px; margin-top:20px; }
+  .contact-icon{
+    position:relative; width:56px; height:56px; border-radius:50%;
+    border:1px solid var(--rule); background:transparent; color:var(--text-dim);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition: color .2s, border-color .2s, transform .15s;
+  }
+  .contact-icon:hover{ color:var(--accent-warm); border-color:var(--accent-warm); }
+  .contact-icon:active{ transform:scale(0.94); }
+  .contact-icon svg{ width:24px; height:24px; }
+  .copied-tip{
+    position:absolute; bottom:-28px; left:50%; transform:translateX(-50%);
+    font-family:var(--font-mono); font-size:0.7rem; color:var(--accent-warm);
+    opacity:0; transition:opacity .2s; white-space:nowrap; pointer-events:none;
+  }
+  .copied-tip.show{ opacity:1; }
+
+</style>
+</head>
+<body>
+
+<div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+<canvas id="netBg" aria-hidden="true"></canvas>
+
+<nav class="sectionLabels" aria-label="Sections">
+  <button data-target="intro">Home</button>
+  <button data-target="experience">Experience</button>
+  <button data-target="projects">Projects</button>
+  <button data-target="education">Education</button>
+  <button data-target="contact">Contact</button>
+</nav>
+
+<main>
+
+  <section class="section" id="intro" data-label="Home">
+    <div class="section-inner">
+      <h1 class="hero-name">Jayden Xu <span style="color:var(--text-dim); font-weight:400;">徐珮宇</span></h1>
+      <p class="hero-slogan">Optimize everything.</p>
+    </div>
+  </section>
+
+  <section class="section" id="experience" data-label="Experience">
+    <div class="section-inner">
+      <span class="idx">02</span>
+      <h2>Experience</h2>
+      <div class="timeline">
+        <div class="role">
+          <span class="role-title">Incoming AI Infra Engineer</span> <span class="role-org">· TikTok</span>
+          <div class="role-meta">Sep 2026 – Present · California, United States</div>
+          <div class="role-note">where he worked on Training / Inference Infra.</div>
+        </div>
+        <div class="role">
+          <span class="role-title">AI Infra Engineer</span> <span class="role-org">· TikTok</span>
+          <div class="role-meta">May 2026 – Aug 2026 · Shanghai, China</div>
+          <div class="role-note">where he worked on Inference Infra.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="projects" data-label="Projects">
+    <div class="section-inner">
+      <span class="idx">03</span>
+      <h2>Projects</h2>
+      <div class="project">
+        <div class="project-head">
+          <span class="project-title">FlashMLA</span>
+          <span class="project-dates">Oct 2025 – Feb 2026</span>
+        </div>
+        <div class="project-note">where he worked on Inference Optimization.</div>
+        <a class="project-link" href="https://github.com/Jayden-Xu/vLLM-FlashMLA" target="_blank" rel="noopener" aria-label="FlashMLA on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.17.08 1.78 1.2 1.78 1.2 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.72-1.55-2.55-.29-5.23-1.28-5.23-5.68 0-1.25.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.58.24 2.75.12 3.04.74.81 1.19 1.84 1.19 3.09 0 4.41-2.69 5.39-5.25 5.67.41.36.78 1.07.78 2.16 0 1.56-.01 2.82-.01 3.2 0 .31.21.68.8.56A10.51 10.51 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="education" data-label="Education">
+    <div class="section-inner">
+      <span class="idx">04</span>
+      <h2>Education</h2>
+      <div class="edu-item">
+        <div class="edu-head">
+          <span class="edu-school">University of Michigan</span>
+          <span class="edu-dates">Aug 2025 – Dec 2026</span>
+        </div>
+        <div class="edu-degree">Master of Science</div>
+      </div>
+      <div class="edu-item">
+        <div class="edu-head">
+          <span class="edu-school">University of California, Berkeley</span>
+          <span class="edu-dates">Jan 2025 – May 2025</span>
+        </div>
+        <div class="edu-degree">Visiting Student</div>
+      </div>
+      <div class="edu-item">
+        <div class="edu-head">
+          <span class="edu-school">Shanghai Jiao Tong University</span>
+          <span class="edu-dates">Aug 2022 – Aug 2026</span>
+        </div>
+        <div class="edu-degree">Bachelor of Science</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="contact" data-label="Contact">
+    <div class="section-inner">
+      <span class="idx">05</span>
+      <h2>Contact</h2>
+      <div class="contact-icons">
+        <button class="contact-icon" data-copy="xupeiyu0827@gmail.com" aria-label="Copy email address">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+          <span class="copied-tip">Copied</span>
+        </button>
+        <button class="contact-icon" data-copy="https://github.com/Jayden-Xu" aria-label="Copy GitHub link">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.17.08 1.78 1.2 1.78 1.2 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.72-1.55-2.55-.29-5.23-1.28-5.23-5.68 0-1.25.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.58.24 2.75.12 3.04.74.81 1.19 1.84 1.19 3.09 0 4.41-2.69 5.39-5.25 5.67.41.36.78 1.07.78 2.16 0 1.56-.01 2.82-.01 3.2 0 .31.21.68.8.56A10.51 10.51 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"/></svg>
+          <span class="copied-tip">Copied</span>
+        </button>
+        <button class="contact-icon" data-copy="https://www.linkedin.com/in/jayden-xu-0b7813339/" aria-label="Copy LinkedIn link">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.36V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.38-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.12 20.45H3.56V9h3.56v11.45Z"/></svg>
+          <span class="copied-tip">Copied</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function(){
+  var sections = document.querySelectorAll('.section');
+  var layerCount = sections.length;
+  var progressFill = document.getElementById('progressFill');
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Continuous position in [0, layerCount-1] — e.g. 1.35 means "35% of the
+  // way from layer 1 into layer 2". Driven directly off scroll distance so
+  // the network's highlight and flow move exactly as far as the page does,
+  // instead of snapping between whole layers.
+  var progress = 0;
+
+  // ---- scroll-spy: for each pair of adjacent sections, track how far the
+  // next section's top has travelled through a fixed window (from the
+  // bottom of the viewport up to a line near its upper third) and turn
+  // that into a 0..1 fraction. Taking the running max across all pairs
+  // gives one continuous progress value the network can render directly. ----
+  function updateActiveSection(){
+    var vh = window.innerHeight;
+    var lineY = vh * 0.4;
+    var windowSize = Math.max(1, vh - lineY);
+    // Walk the pairs in order and stop at the first one that hasn't fully
+    // completed yet — that's the transition currently in progress. (Taking
+    // a plain max over every pair's fraction is wrong: a boundary that
+    // hasn't started moving yet clamps to 0, but its layer index would
+    // still leak into the max and overstate progress.)
+    var p = sections.length - 1;
+    for (var i = 0; i < sections.length - 1; i++){
+      var boundary = sections[i + 1].getBoundingClientRect().top;
+      var t = Math.max(0, Math.min(1, (vh - boundary) / windowSize));
+      if (t < 1){ p = i + t; break; }
+    }
+    // Clamp the extremes directly off scroll position: a short first/last
+    // section can otherwise never reach an exact 0 or layerCount-1.
+    var maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    if (window.scrollY <= 0){ p = 0; }
+    else if (window.scrollY >= maxScroll - 2){ p = sections.length - 1; }
+    progress = Math.max(0, Math.min(sections.length - 1, p));
+    updateSectionLabels();
+    if (reduceMotion && layers){ draw(); }
+  }
+
+  // ---- section label sidebar: names the layers the network diagram only
+  // shows as dots, and crossfades brightness the same way the network does ----
+  var labelButtons = document.querySelectorAll('.sectionLabels button');
+  labelButtons.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var target = document.getElementById(btn.getAttribute('data-target'));
+      if (target){ target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' }); }
+    });
+  });
+  function updateSectionLabels(){
+    labelButtons.forEach(function(btn, i){
+      var w = Math.max(0, 1 - Math.abs(i - progress));
+      btn.style.opacity = (0.4 + 0.6 * w).toFixed(3);
+      btn.style.color = w > 0.5 ? 'var(--accent-warm)' : 'var(--text-dim)';
+    });
+  }
+
+  // ---- scroll progress bar ----
+  function updateProgress(){
+    var scrollTop = window.scrollY;
+    var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    var pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    progressFill.style.width = pct + '%';
+  }
+
+  function onScroll(){ updateProgress(); updateActiveSection(); }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', updateActiveSection);
+  onScroll();
+
+  // ---- click-to-copy contact icons ----
+  function copyText(text){
+    if (navigator.clipboard && window.isSecureContext){
+      return navigator.clipboard.writeText(text);
+    }
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    return Promise.resolve();
+  }
+  document.querySelectorAll('.contact-icon').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var value = btn.getAttribute('data-copy');
+      copyText(value).then(function(){
+        var tip = btn.querySelector('.copied-tip');
+        tip.classList.add('show');
+        setTimeout(function(){ tip.classList.remove('show'); }, 1200);
+      });
+    });
+  });
+
+  // ---- background neural-network: doubles as the section nav ----
+  var canvas = document.getElementById('netBg');
+  var ctx = canvas.getContext('2d');
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var accentCool = [95, 160, 201];
+  var accentWarm = [232, 150, 61];
+  var W, H, layerY, layers, edges;
+
+  function rand(min, max){ return min + Math.random() * (max - min); }
+  function lerp(a, b, t){ return a + (b - a) * t; }
+  // Triangular falloff: 1 right at this layer, fading to 0 one full layer
+  // away in either direction — gives the two layers on either side of
+  // `progress` a smooth crossfade instead of a hard on/off switch.
+  function layerWeight(li){ return Math.max(0, 1 - Math.abs(li - progress)); }
+
+  function nodeCountForLayer(li, narrow){
+    if (layerCount === 1) return narrow ? 7 : 11;
+    var mid = (layerCount - 1) / 2;
+    var dist = mid === 0 ? 0 : Math.abs(li - mid) / mid;
+    var maxC = narrow ? 7 : 11;
+    var minC = narrow ? 4 : 6;
+    return Math.round(maxC - dist * (maxC - minC));
+  }
+
+  function buildNetwork(){
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    var narrow = W < 700;
+    var padY = H * 0.1;
+    var usableH = H - padY * 2;
+    var marginX = W * 0.06;
+    var usableW = W - marginX * 2;
+
+    layerY = [];
+    layers = [];
+    for (var li = 0; li < layerCount; li++){
+      var y0 = layerCount === 1 ? H / 2 : padY + (usableH * li / (layerCount - 1));
+      layerY.push(y0);
+      var count = nodeCountForLayer(li, narrow);
+      var nodes = [];
+      for (var i = 0; i < count; i++){
+        var t = count === 1 ? 0.5 : i / (count - 1);
+        var x = marginX + t * usableW + rand(-12, 12);
+        var y = y0 + rand(-H * 0.015, H * 0.015);
+        nodes.push({ x: x, y: y, r: rand(1.4, 3), phase: Math.random() * Math.PI * 2 });
+      }
+      layers.push(nodes);
+    }
+
+    // connect every node to the next layer, guarantee no node is ever left
+    // isolated, then scatter in extra links for a denser fully-wired look.
+    edges = [];
+    for (li = 0; li < layers.length - 1; li++){
+      (function(li){
+        var from = layers[li], to = layers[li + 1];
+        var seen = {};
+        function addEdge(ai, bi){
+          var key = ai + '_' + bi;
+          if (seen[key]) return;
+          seen[key] = true;
+          edges.push({ a: from[ai], b: to[bi], li: li });
+        }
+        from.forEach(function(a, ai){ addEdge(ai, Math.floor(Math.random() * to.length)); });
+        to.forEach(function(b, bi){
+          var hasIncoming = Object.keys(seen).some(function(k){ return k.slice(k.indexOf('_') + 1) == bi; });
+          if (!hasIncoming){ addEdge(Math.floor(Math.random() * from.length), bi); }
+        });
+        from.forEach(function(a, ai){
+          to.forEach(function(b, bi){
+            if (Math.random() < 0.16){ addEdge(ai, bi); }
+          });
+        });
+      })(li);
+    }
+  }
+
+  // Soft radial light pool — this is what makes the dark canvas read as
+  // "illuminated" around lit nodes rather than just having brighter dots.
+  // Drawn with 'lighter' compositing so overlapping pools add brightness.
+  function glowAt(x, y, radius, alpha){
+    if (radius <= 0 || alpha <= 0) return;
+    var g = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    g.addColorStop(0, 'rgba(' + accentWarm.join(',') + ',' + alpha.toFixed(3) + ')');
+    g.addColorStop(1, 'rgba(' + accentWarm.join(',') + ',0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function draw(){
+    ctx.clearRect(0, 0, W, H);
+
+    var now = performance.now() / 1000;
+    // gentle shared shimmer on top of the scroll-driven brightness, so a
+    // fully-settled layer still feels alive rather than static.
+    var blink = reduceMotion ? 1 : (0.7 + 0.3 * Math.sin(now * 2.2));
+    var baseLayer = Math.min(layerCount - 2, Math.floor(progress));
+    if (baseLayer < 0) baseLayer = 0;
+    var frac = Math.max(0, Math.min(1, progress - Math.floor(progress)));
+    var activity = 4 * frac * (1 - frac);
+
+    // ---- pass 1: ambient light pools, screen stays black everywhere else ----
+    ctx.globalCompositeOperation = 'lighter';
+    layers.forEach(function(nodes, li){
+      var w = layerWeight(li);
+      if (w <= 0.03) return;
+      nodes.forEach(function(n){
+        glowAt(n.x, n.y, lerp(0, 46, w), lerp(0, 0.1, w) * (0.75 + 0.25 * blink));
+      });
+    });
+    if (activity > 0.03){
+      edges.forEach(function(e){
+        if (e.li !== baseLayer) return;
+        var x = e.a.x + (e.b.x - e.a.x) * frac;
+        var y = e.a.y + (e.b.y - e.a.y) * frac;
+        glowAt(x, y, 60 * activity, 0.16 * activity);
+      });
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    // ---- pass 2: the wiring itself — near-invisible where unlit, in true
+    // black nothing should show but the illuminated path ----
+    ctx.lineWidth = 1;
+    edges.forEach(function(e){
+      // the edges directly spanning the current transition stay fully lit
+      // throughout it; neighboring edge sets crossfade with their layer.
+      var w = e.li === baseLayer ? 1 : Math.max(layerWeight(e.li), layerWeight(e.li + 1));
+      ctx.save();
+      if (w > 0.02){
+        ctx.shadowColor = 'rgba(' + accentWarm.join(',') + ',0.6)';
+        ctx.shadowBlur = 4 * w;
+        ctx.strokeStyle = 'rgba(' + accentWarm.join(',') + ',' + (w * (0.16 + 0.26 * blink)).toFixed(3) + ')';
+      } else {
+        ctx.strokeStyle = 'rgba(' + accentCool.join(',') + ',0.05)';
+      }
+      ctx.beginPath();
+      ctx.moveTo(e.a.x, e.a.y);
+      ctx.lineTo(e.b.x, e.b.y);
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    layers.forEach(function(nodes, li){
+      var w = layerWeight(li);
+      nodes.forEach(function(n){
+        ctx.save();
+        if (w > 0.02){
+          var r = lerp(1, 1.7, w) * n.r;
+          var alpha = lerp(0.16, 0.4 + 0.5 * blink, w);
+          var cr = Math.round(lerp(accentCool[0], accentWarm[0], w));
+          var cg = Math.round(lerp(accentCool[1], accentWarm[1], w));
+          var cb = Math.round(lerp(accentCool[2], accentWarm[2], w));
+          ctx.shadowColor = 'rgba(' + accentWarm.join(',') + ',' + (0.8 * w).toFixed(3) + ')';
+          ctx.shadowBlur = (5 + 6 * blink) * w;
+          ctx.fillStyle = 'rgba(' + cr + ',' + cg + ',' + cb + ',' + alpha.toFixed(3) + ')';
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+        } else {
+          var idle = reduceMotion ? 0.5 : (0.5 + 0.5 * Math.sin(now * 1.1 + n.phase));
+          ctx.fillStyle = 'rgba(' + accentCool.join(',') + ',' + (0.05 + 0.05 * idle).toFixed(3) + ')';
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        }
+        ctx.fill();
+        ctx.restore();
+      });
+    });
+
+    // the flow marker sits at `frac` along every edge of the layer pair
+    // currently being crossed — its position tracks scroll distance
+    // directly, so it travels exactly as far as the page has scrolled.
+    // It fades in/out at the two ends of the crossing (activity is 0 when
+    // fully settled on a layer) so it only shows while actually in transit.
+    if (activity > 0.03){
+      edges.forEach(function(e){
+        if (e.li !== baseLayer) return;
+        var x = e.a.x + (e.b.x - e.a.x) * frac;
+        var y = e.a.y + (e.b.y - e.a.y) * frac;
+        ctx.save();
+        ctx.shadowColor = 'rgba(' + accentWarm.join(',') + ',' + (0.95 * activity).toFixed(3) + ')';
+        ctx.shadowBlur = 9;
+        ctx.fillStyle = 'rgba(' + accentWarm.join(',') + ',' + (0.95 * activity).toFixed(3) + ')';
+        ctx.beginPath();
+        ctx.arc(x, y, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+  }
+
+  function loop(){
+    draw();
+    if (!reduceMotion){ requestAnimationFrame(loop); }
+  }
+
+  buildNetwork();
+  loop();
+
+  var resizeTimer;
+  window.addEventListener('resize', function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function(){ buildNetwork(); if (reduceMotion){ draw(); } }, 200);
+  });
+
+  // ---- clicking empty background space jumps to the nearest layer's section ----
+  document.addEventListener('click', function(e){
+    if (!e.target.classList || !e.target.classList.contains('section')) return;
+    var bestLi = 0, bestDist = Infinity;
+    for (var li = 0; li < layerY.length; li++){
+      var d = Math.abs(e.clientY - layerY[li]);
+      if (d < bestDist){ bestDist = d; bestLi = li; }
+    }
+    sections[bestLi].scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
+  });
+})();
+</script>
+
+</body>
+</html>
