@@ -8,7 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2311141A'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='16' fill='%23E8963D' text-anchor='middle'%3EJX%3C/text%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#000000;
@@ -20,6 +20,7 @@
     --rule-soft:#14171C;
     --font-mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
     --font-sans:'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-script:'Caveat', cursive;
   }
   *{ box-sizing:border-box; }
   html{ scroll-behavior:smooth; font-size:18px; }
@@ -68,10 +69,10 @@
   }
 
   /* COVER */
-  .hero-name{
-    font-family:var(--font-mono); font-size:clamp(2.1rem, 5.5vw, 3.1rem); font-weight:600;
-    margin:0 0 18px 0; letter-spacing:-0.01em;
-    text-shadow: 0 0 30px rgba(232,150,61,0.25);
+  .hero-name{ margin:0 0 18px 0; line-height:1.15; }
+  .hero-name-en{
+    font-family:var(--font-script); font-size:clamp(3.2rem, 8vw, 4.6rem); font-weight:600;
+    text-shadow: 0 0 30px rgba(232,150,61,0.3);
   }
   .hero-slogan{ color:var(--text-dim); font-size:1.15rem; margin:0; }
 
@@ -85,7 +86,7 @@
   .role:last-child{ margin-bottom:0; }
   .role::before{ content:''; position:absolute; left:-29px; top:7px; width:9px; height:9px; border-radius:50%; background:var(--accent-warm); }
   .role-title{ font-weight:500; font-size:1.1rem; }
-  .role-org{ color:var(--accent-cool); }
+  .role-org{ font-family:var(--font-script); color:var(--accent-cool); font-size:1.4rem; font-weight:600; }
   .role-meta{ font-family:var(--font-mono); font-size:0.8rem; color:var(--text-dim); margin-top:4px; }
   .role-note{ font-family:var(--font-mono); font-size:0.85rem; color:var(--text-dim); margin-top:8px; }
   .role-note::before{ content:'// '; color:var(--rule); }
@@ -111,7 +112,7 @@
   .edu-item{ padding:24px 0; border-bottom:1px solid var(--rule); }
   .edu-item:last-child{ border-bottom:none; }
   .edu-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
-  .edu-school{ font-weight:500; }
+  .edu-school{ font-family:var(--font-script); font-weight:600; font-size:1.5rem; }
   .edu-degree{ color:var(--text-dim); font-size:0.92rem; margin-top:2px; }
   .edu-dates{ font-family:var(--font-mono); font-size:0.8rem; color:var(--text-dim); white-space:nowrap; }
 
@@ -153,7 +154,7 @@
 
   <section class="section" id="intro" data-label="Home">
     <div class="section-inner">
-      <h1 class="hero-name">Jayden Xu <span style="color:var(--text-dim); font-weight:400;">徐珮宇</span></h1>
+      <h1 class="hero-name"><span class="hero-name-en">Jayden Xu</span></h1>
       <p class="hero-slogan">Optimize everything.</p>
     </div>
   </section>
@@ -162,7 +163,7 @@
     <div class="section-inner">
       <span class="idx">02</span>
       <h2>About</h2>
-      <p class="about-text">I'm drawn to the layer where algorithms meet hardware — places that decide whether a model that works on paper actually runs fast in production. Most of my time goes into inference and training infra.</p>
+      <p class="about-text">I'm drawn to the layer where algorithms meet hardware — the layer that decides whether a model that works on paper actually runs fast in production. Most of my time goes into inference and training infra: finding where cycles get wasted, then rebuilding that path from the ground up.</p>
       <p class="about-text">My bet is that the next real bottleneck for AI isn't bigger models — it's making the systems underneath them fast, cheap, and reliable enough to run everywhere.</p>
     </div>
   </section>
@@ -173,12 +174,12 @@
       <h2>Experience</h2>
       <div class="timeline">
         <div class="role">
-          <span class="role-title">Incoming AI Infra Engineer</span> <span class="role-org">· TikTok</span>
+          <span class="role-title">Incoming AI Infra Engineer</span> · <span class="role-org">TikTok</span>
           <div class="role-meta">Sep 2026 – Present · California, United States</div>
           <div class="role-note">where he worked on Training / Inference Infra.</div>
         </div>
         <div class="role">
-          <span class="role-title">AI Infra Engineer</span> <span class="role-org">· TikTok</span>
+          <span class="role-title">AI Infra Engineer</span> · <span class="role-org">TikTok</span>
           <div class="role-meta">May 2026 – Aug 2026 · Shanghai, China</div>
           <div class="role-note">where he worked on Inference Infra.</div>
         </div>
@@ -473,26 +474,71 @@
     }
     ctx.globalCompositeOperation = 'source-over';
 
-    // ---- pass 2: the wiring itself — near-invisible where unlit, in true
-    // black nothing should show but the illuminated path ----
-    ctx.lineWidth = 1;
-    edges.forEach(function(e){
-      // the edges directly spanning the current transition stay fully lit
-      // throughout it; neighboring edge sets crossfade with their layer.
-      var w = e.li === baseLayer ? 1 : Math.max(layerWeight(e.li), layerWeight(e.li + 1));
+    // ---- pass 2: the wiring itself. A wire is not its own light source —
+    // it only catches light near whichever end has a lit node, and briefly
+    // where the traveling flow marker passes over it. Everywhere else it
+    // stays at the same near-invisible base as a fully idle edge. Each
+    // glow is a short gradient stub anchored at its light source and faded
+    // to fully transparent within a short reach, rather than one flat
+    // color across the whole line (which read as the edge itself glowing
+    // end to end regardless of how far that was from any actual light). ----
+    function warmStop(t, alpha){ return { t: t, c: 'rgba(' + accentWarm.join(',') + ',' + alpha.toFixed(3) + ')' }; }
+    // Stops must be non-decreasing for a valid gradient; sort + clamp here
+    // instead of hand-proving every combination of reach/marker geometry.
+    function paintGlowStub(ax, ay, bx, by, stops){
+      var g = ctx.createLinearGradient(ax, ay, bx, by);
+      var sorted = stops.slice().sort(function(p, q){ return p.t - q.t; });
+      var last = -1;
+      sorted.forEach(function(s){
+        var t = Math.max(last, Math.min(1, Math.max(0, s.t)));
+        g.addColorStop(t, s.c);
+        last = t;
+      });
       ctx.save();
-      if (w > 0.02){
-        ctx.shadowColor = 'rgba(' + accentWarm.join(',') + ',0.6)';
-        ctx.shadowBlur = 4 * w;
-        ctx.strokeStyle = 'rgba(' + accentWarm.join(',') + ',' + (w * (0.16 + 0.26 * blink)).toFixed(3) + ')';
-      } else {
-        ctx.strokeStyle = 'rgba(' + accentCool.join(',') + ',0.05)';
-      }
+      ctx.strokeStyle = g;
+      ctx.shadowColor = 'rgba(' + accentWarm.join(',') + ',0.5)';
+      ctx.shadowBlur = 3;
       ctx.beginPath();
-      ctx.moveTo(e.a.x, e.a.y);
-      ctx.lineTo(e.b.x, e.b.y);
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(bx, by);
       ctx.stroke();
       ctx.restore();
+    }
+
+    ctx.lineWidth = 1;
+    edges.forEach(function(e){
+      var ax = e.a.x, ay = e.a.y, bx = e.b.x, by = e.b.y;
+      var len = Math.hypot(bx - ax, by - ay) || 1;
+      var wA = layerWeight(e.li);
+      var wB = layerWeight(e.li + 1);
+      var isFlowEdge = e.li === baseLayer && activity > 0.03;
+
+      // always-present base wire, same as a fully idle edge
+      ctx.strokeStyle = 'rgba(' + accentCool.join(',') + ',0.05)';
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(bx, by);
+      ctx.stroke();
+
+      if (wA <= 0.02 && wB <= 0.02 && !isFlowEdge) return;
+
+      var reachPx = 85;
+      var maxAlpha = 0.75 * (0.55 + 0.45 * blink);
+      var reachA = Math.min(0.42, (reachPx * wA) / len);
+      var reachB = Math.min(0.42, (reachPx * wB) / len);
+      var stops = [
+        warmStop(0, wA > 0.02 ? maxAlpha * wA : 0),
+        warmStop(wA > 0.02 ? reachA : 0.001, 0),
+        warmStop(wB > 0.02 ? 1 - reachB : 0.999, 0),
+        warmStop(1, wB > 0.02 ? maxAlpha * wB : 0)
+      ];
+      if (isFlowEdge){
+        var half = Math.min(0.14, 55 / len);
+        stops.push(warmStop(Math.max(0, frac - half), 0));
+        stops.push(warmStop(frac, 0.9 * activity));
+        stops.push(warmStop(Math.min(1, frac + half), 0));
+      }
+      paintGlowStub(ax, ay, bx, by, stops);
     });
 
     layers.forEach(function(nodes, li){
@@ -544,6 +590,13 @@
   }
 
   function loop(){
+    // Recompute from the live scroll position every frame rather than only
+    // reacting to 'scroll' events — browsers can coalesce/throttle those
+    // (especially during a smooth-scroll's deceleration), which made the
+    // network's glow visibly hitch and pop once the event finally caught up
+    // right as a section settled. Sampling scrollY here keeps it locked to
+    // the actual frame rate regardless of event timing.
+    updateActiveSection();
     draw();
     if (!reduceMotion){ requestAnimationFrame(loop); }
   }
