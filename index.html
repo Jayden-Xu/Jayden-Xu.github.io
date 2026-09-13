@@ -268,14 +268,21 @@
   var progress = 0;
 
   // ---- scroll-spy: for each pair of adjacent sections, track how far the
-  // next section's top has travelled through a fixed window (from the
-  // bottom of the viewport up to a line near its upper third) and turn
-  // that into a 0..1 fraction. Taking the running max across all pairs
-  // gives one continuous progress value the network can render directly. ----
+  // next section's top has travelled — from the bottom of the viewport up
+  // through a window sized off that section's OWN height (clamped to a
+  // sane range) — and turn that into a 0..1 fraction. Taking the running
+  // max across all pairs gives one continuous progress value the network
+  // can render directly.
+  //
+  // The window used to be sized off viewport height (vh - a fixed line),
+  // which scales without bound: on a very tall viewport that distance grew
+  // past the section's actual content height, so progress would sit stuck
+  // on the previous layer for a stretch of scrolling and then snap forward
+  // once the oversized window finally finished — visible as the light
+  // jumping instead of flowing smoothly. Sizing the window off the
+  // section's real height fixes that at any viewport size. ----
   function updateActiveSection(){
     var vh = window.innerHeight;
-    var lineY = vh * 0.4;
-    var windowSize = Math.max(1, vh - lineY);
     // Walk the pairs in order and stop at the first one that hasn't fully
     // completed yet — that's the transition currently in progress. (Taking
     // a plain max over every pair's fraction is wrong: a boundary that
@@ -283,7 +290,9 @@
     // still leak into the max and overstate progress.)
     var p = sections.length - 1;
     for (var i = 0; i < sections.length - 1; i++){
-      var boundary = sections[i + 1].getBoundingClientRect().top;
+      var next = sections[i + 1];
+      var boundary = next.getBoundingClientRect().top;
+      var windowSize = Math.max(150, Math.min(next.getBoundingClientRect().height, 500));
       var t = Math.max(0, Math.min(1, (vh - boundary) / windowSize));
       if (t < 1){ p = i + t; break; }
     }
