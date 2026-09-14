@@ -76,6 +76,7 @@
   }
   .hero-prompt{ font-family:var(--font-mono); font-size:0.85rem; color:var(--text-dim); margin:0 0 10px 0; letter-spacing:0.02em; }
   .hero-prompt-sign{ color:var(--accent-warm); }
+  .hero-role{ font-family:var(--font-mono); font-size:1.1rem; font-weight:500; color:var(--text); margin:0 0 6px 0; }
   .hero-slogan{ color:var(--text-dim); font-size:1.15rem; margin:0; font-family:var(--font-mono); }
   .hero-cursor{ display:inline-block; margin-left:2px; color:var(--accent-warm); animation:blink 1s step-end infinite; }
   @keyframes blink{ 50%{ opacity:0; } }
@@ -169,6 +170,7 @@
     <div class="section-inner">
       <h1 class="hero-name"><span class="hero-name-en">Jayden Xu</span></h1>
       <p class="hero-prompt"><span class="hero-prompt-sign">$</span> whoami</p>
+      <p class="hero-role">AI Infra Engineer</p>
       <p class="hero-slogan"><span id="typedSlogan"></span><span class="hero-cursor">|</span></p>
     </div>
   </section>
@@ -384,7 +386,7 @@
   (function(){
     var el = document.getElementById('typedSlogan');
     if (!el) return;
-    var text = 'AI Infra Engineer · optimize everything.';
+    var text = 'Optimization is the key.';
     if (reduceMotion){ el.textContent = text; return; }
     var i = 0;
     (function tick(){
