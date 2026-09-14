@@ -91,8 +91,8 @@
   .role-title{ font-weight:500; font-size:1.1rem; }
   .role-org{ font-family:var(--font-script); color:var(--accent-cool); font-size:1.4rem; font-weight:600; }
   .role-meta{ font-family:var(--font-mono); font-size:0.8rem; color:var(--text-dim); margin-top:4px; }
-  .role-note{ font-family:var(--font-mono); font-size:0.85rem; color:var(--text-dim); margin-top:8px; }
-  .role-note::before{ content:'// '; color:var(--rule); }
+  .role-note, .project-note, .edu-note{ font-family:var(--font-mono); font-size:0.85rem; color:var(--text-dim); margin-top:8px; }
+  .role-note::before, .project-note::before, .edu-note::before{ content:'// '; color:var(--rule); }
 
   /* PROJECTS */
   .project{ padding:30px 0; border-bottom:1px solid var(--rule); }
@@ -100,8 +100,6 @@
   .project-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
   .project-title{ font-family:var(--font-mono); font-size:1.1rem; font-weight:600; }
   .project-dates{ font-family:var(--font-mono); font-size:0.8rem; color:var(--text-dim); white-space:nowrap; }
-  .project-note{ font-family:var(--font-mono); font-size:0.85rem; color:var(--text-dim); margin-top:8px; }
-  .project-note::before{ content:'// '; color:var(--rule); }
   .project-link{
     display:inline-flex; align-items:center; justify-content:center;
     width:38px; height:38px; border-radius:50%;
@@ -167,7 +165,7 @@
       <span class="idx">02</span>
       <h2>About</h2>
       <p class="about-text">I'm drawn to the layer where algorithms meet hardware — the layer that decides whether a model that works on paper actually runs fast in production. Most of my time goes into inference and training infra: finding where cycles get wasted, then rebuilding that path from the ground up.</p>
-      <p class="about-text">My bet is that the next real bottleneck for AI isn't bigger models — it's making the systems underneath them fast, cheap, and reliable enough to run everywhere.</p>
+      <p class="about-text">I believe that as models keep getting bigger and more powerful, how efficiently they run only becomes more important.</p>
     </div>
   </section>
 
@@ -217,6 +215,7 @@
           <span class="edu-dates">Aug 2025 – Dec 2026</span>
         </div>
         <div class="edu-degree">Master of Science</div>
+        <div class="edu-note">Where I decided to go all-in on AI infra.</div>
       </div>
       <div class="edu-item">
         <div class="edu-head">
@@ -224,6 +223,7 @@
           <span class="edu-dates">Jan 2025 – May 2025</span>
         </div>
         <div class="edu-degree">Visiting Student</div>
+        <div class="edu-note">Where I started thinking about which subfield to pursue.</div>
       </div>
       <div class="edu-item">
         <div class="edu-head">
@@ -231,6 +231,7 @@
           <span class="edu-dates">Aug 2022 – Aug 2026</span>
         </div>
         <div class="edu-degree">Bachelor of Science</div>
+        <div class="edu-note">Marks the beginning of my engineering career.</div>
       </div>
     </div>
   </section>
