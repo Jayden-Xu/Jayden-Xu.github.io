@@ -404,7 +404,10 @@ let renderer=null, renderFailed=false;
 let pointerStamp=0, glowSprite=null, matrixBase=null, matrixCells=[];
 // The fabric is lit only by the overlay: a warm pointer halo and the cool
 // matrix cells that flicker on by themselves. Everything else stays dark.
-const AMBIENT=.065, WARM=[1,.68,.36], COOL=[.60,.79,1], MAX_LIGHTS=6;
+// Ambient is near zero at rest, so unlit fabric stays invisible. A section
+// change raises it for the length of the flight, then it fades back to dark.
+const AMBIENT=.065, REVEAL=.46, REVEAL_IN=190, REVEAL_OUT=780;
+const WARM=[1,.68,.36], COOL=[.60,.79,1], MAX_LIGHTS=6;
 let activeCells=[], lights=[];
 // Section anchors are neighboring districts in the same unbounded compute fabric.
 const poses=[
@@ -550,7 +553,7 @@ function createPackage(canvas){
  function view(eye,target){const z=norm(eye.map((v,i)=>v-target[i])),x=norm(cross([0,1,0],z)),y=cross(z,x);return new Float32Array([x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-dot(x,eye),-dot(y,eye),-dot(z,eye),1]);}
  let aspect=1,dpr=1;
  function resize(){dpr=Math.min(devicePixelRatio||1,1.6,Math.sqrt(2200000/(W*H)));canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);aspect=W/H;gl.viewport(0,0,canvas.width,canvas.height);}
- function render(p,time,lights,sweep){
+ function render(p,time,lights,sweep,ambient){
   const distance=p.distance*(aspect<.75?1.18:1),sp=Math.sin(p.phi),cp=Math.cos(p.phi);
   const eye=[p.target[0]+distance*sp*Math.sin(p.theta),p.target[1]+distance*cp,p.target[2]+distance*sp*Math.cos(p.theta)];
   const f=1/Math.tan((p.fov||.69)/2),near=.08,far=90;const proj=new Float32Array([f/aspect,0,0,0,0,f,0,0,0,0,(far+near)/(near-far),-1,0,0,2*far*near/(near-far),0]);
@@ -562,7 +565,7 @@ function createPackage(canvas){
    colorData[i*3]=L?L.c[0]:0;colorData[i*3+1]=L?L.c[1]:0;colorData[i*3+2]=L?L.c[2]:0;
   }
   gl.uniform4fv(u['uLights[0]'],lightData);gl.uniform3fv(u['uLightColor[0]'],colorData);
-  gl.uniform1f(u.uAmbient,AMBIENT);
+  gl.uniform1f(u.uAmbient,ambient);
   gl.uniform1f(u.uSweepHead,sweep?sweep.head*dpr:0);
   gl.uniform1f(u.uSweepWidth,sweep?Math.max(1,sweep.width*dpr):1);
   gl.uniform1f(u.uSweepGain,sweep?sweep.gain:0);
@@ -610,6 +613,14 @@ function sceneLights(){
 }
 // One wave clock drives both the 2D matrix pulse and the light band that
 // sweeps across the model, so they read as the same event.
+// Exposure: full through the flight, then a slow decay measured from the
+// moment the transition ended, so the fabric sinks back into the dark.
+function revealAmount(now){
+ if(transition)return smooth(clamp((now-transition.start)/REVEAL_IN));
+ if(!lastEnd)return 0;
+ const q=(now-lastEnd)/REVEAL_OUT;
+ return q>=1?0:1-smooth(q);
+}
 function sceneSweep(now){
  let t=-1,forward=true,amp=.18;
  if(transition){t=clamp((now-transition.start)/DURATION);forward=transition.forward;amp=.30;}
@@ -738,14 +749,15 @@ function drawOverlay(now,sweep){
 function drawScene(now){
  const sweep=sceneSweep(now);
  drawOverlay(now,sweep);
- if(renderer&&!renderFailed)renderer.render(cameraPose(now),now,sceneLights(),sweep);
+ const reveal=revealAmount(now);
+ if(renderer&&!renderFailed)renderer.render(cameraPose(now),now,sceneLights(),sweep,AMBIENT+REVEAL*reveal);
 }
 function frame(now){
  raf=0;if(document.hidden)return;
  if(transition)stepTransition(now);
  const budget=transition?0:(now-pointerStamp<120?12:W<=900?48:32);
  if(motion.matches||now-lastBg>=budget){drawScene(now);lastBg=now;}
- if(transition||!motion.matches)ensureFrame();
+ if(transition||!motion.matches||revealAmount(now)>0)ensureFrame();
 }
 function ensureFrame(){if(!raf&&!document.hidden)raf=requestAnimationFrame(frame);}
 function resize(){
@@ -813,7 +825,7 @@ typeNext();
 sections.forEach(s=>s.tabIndex=-1);
 try{renderer=createPackage($('#packageCanvas'));}catch(e){renderFailed=true;console.warn('Compute renderer unavailable; using direct section navigation.',e);}
 // Warm the shader before the first frame so the fabric is there on load.
-if(renderer&&!renderFailed)renderer.render(cameraPose(performance.now()),0,[],null);
+if(renderer&&!renderFailed)renderer.render(cameraPose(performance.now()),0,[],null,AMBIENT);
 document.documentElement.classList.add('enhanced');if('scrollRestoration'in history)history.scrollRestoration='manual';
 makeGlowSprite();labels();resize();document.body.dataset.phase='content';document.body.dataset.heartbeat=motion.matches?'off':'waiting';
 })();
