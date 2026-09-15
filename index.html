@@ -161,6 +161,222 @@
   }
   .copied-tip.show{ opacity:1; }
 
+
+  /* AI INFRA VISUAL — decorative left rail, independent of page layout */
+  .system-model{
+    position:fixed;
+    left:clamp(18px, 4.5vw, 68px);
+    top:50%;
+    width:210px;
+    height:210px;
+    transform:translateY(-50%);
+    z-index:8;
+    pointer-events:none;
+    opacity:.78;
+  }
+  .infra-stage{
+    position:absolute;
+    inset:0;
+    perspective:1000px;
+    transform-style:preserve-3d;
+  }
+  .infra-orbit{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:170px;
+    height:170px;
+    --rx:61deg;
+    --rz:-38deg;
+    transform:translate(-50%,-50%) rotateX(var(--rx)) rotateZ(var(--rz));
+    transform-style:preserve-3d;
+    transition:transform 1.15s cubic-bezier(.2,.72,.2,1);
+  }
+  .infra-plane{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:116px;
+    height:116px;
+    transform:translate(-50%,-50%) translateZ(12px);
+    border:1px solid rgba(95,160,201,.48);
+    background:
+      linear-gradient(rgba(95,160,201,.11) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(95,160,201,.11) 1px, transparent 1px),
+      rgba(5,8,12,.48);
+    background-size:14px 14px;
+    box-shadow:
+      0 0 32px rgba(95,160,201,.08),
+      inset 0 0 28px rgba(95,160,201,.05);
+    transform-style:preserve-3d;
+  }
+  .infra-die{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:66px;
+    height:66px;
+    transform:translate(-50%,-50%) translateZ(18px);
+    border:1px solid rgba(232,150,61,.62);
+    background:
+      linear-gradient(rgba(232,150,61,.13) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232,150,61,.13) 1px, transparent 1px),
+      rgba(12,12,12,.28);
+    background-size:11px 11px;
+    box-shadow:0 0 30px rgba(232,150,61,.10);
+  }
+  .infra-die::before{
+    content:"";
+    position:absolute;
+    inset:13px;
+    border:1px solid rgba(232,150,61,.55);
+    box-shadow:inset 0 0 18px rgba(232,150,61,.08);
+  }
+  .infra-die::after{
+    content:"";
+    position:absolute;
+    width:18px;
+    height:18px;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    border:1px solid rgba(232,150,61,.75);
+    box-shadow:0 0 18px rgba(232,150,61,.16);
+  }
+
+  /* HBM-like memory stacks */
+  .infra-mem{
+    position:absolute;
+    width:21px;
+    height:55px;
+    border:1px solid rgba(95,160,201,.40);
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(95,160,201,.09) 0 4px,
+      transparent 4px 8px
+    );
+    transform:translateZ(7px);
+    box-shadow:0 0 15px rgba(95,160,201,.05);
+  }
+  .infra-m1{ left:5px; top:28px; }
+  .infra-m2{ right:5px; top:28px; }
+  .infra-m3{ left:22px; bottom:2px; height:20px; width:55px; }
+  .infra-m4{ right:22px; bottom:2px; height:20px; width:55px; }
+
+  /* Package / substrate edge */
+  .infra-edge{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:116px;
+    height:116px;
+    transform:translate(-50%,-50%) translateZ(0);
+    border:1px solid rgba(154,160,170,.18);
+    box-shadow:0 0 0 10px rgba(154,160,170,.025);
+  }
+
+  /* Moving data packets on the interconnect */
+  .infra-packet{
+    position:absolute;
+    width:4px;
+    height:4px;
+    border-radius:50%;
+    background:var(--accent-warm);
+    box-shadow:0 0 9px rgba(232,150,61,.72);
+    opacity:0;
+  }
+  .p1{ left:25px; top:88px; animation:packet1 3.2s linear infinite; }
+  .p2{ left:90px; top:25px; animation:packet2 3.8s linear infinite .7s; }
+  .p3{ left:143px; top:116px; animation:packet3 4.2s linear infinite 1.2s; }
+  @keyframes packet1{
+    0%,8%{opacity:0;transform:translate(0,0)}
+    12%{opacity:1}
+    48%{transform:translate(58px,-38px)}
+    52%{opacity:1}
+    60%,100%{opacity:0;transform:translate(78px,-52px)}
+  }
+  @keyframes packet2{
+    0%,10%{opacity:0;transform:translate(0,0)}
+    16%{opacity:1}
+    55%{transform:translate(-38px,56px)}
+    62%,100%{opacity:0;transform:translate(-52px,76px)}
+  }
+  @keyframes packet3{
+    0%,12%{opacity:0;transform:translate(0,0)}
+    18%{opacity:1}
+    56%{transform:translate(-57px,-20px)}
+    65%,100%{opacity:0;transform:translate(-70px,-28px)}
+  }
+
+  /* Section-specific viewpoints: the same system, different camera angles */  .system-model[data-state="0"] .infra-orbit{ --rx:61deg; --rz:-38deg; }
+  .system-model[data-state="1"] .infra-orbit{ --rx:70deg; --rz:-4deg; }
+  .system-model[data-state="2"] .infra-orbit{ --rx:48deg; --rz:26deg; }
+  .system-model[data-state="3"] .infra-orbit{ --rx:57deg; --rz:72deg; }
+  .system-model[data-state="4"] .infra-orbit{ --rx:76deg; --rz:104deg; }
+  .system-model[data-state="5"] .infra-orbit{ --rx:42deg; --rz:146deg; }
+
+  @media (max-width:1100px){
+    .system-model{ left:12px; transform:translateY(-50%) scale(.78); transform-origin:left center; }
+  }
+  @media (max-width:1100px){
+    .system-model{ left:18px; width:150px; transform:translateY(-50%) scale(.82); transform-origin:left center; }
+  }
+  @media (max-width:900px){
+    .system-model{ opacity:.42; left:8px; transform:translateY(-50%) scale(.62); }
+  }
+  @media (max-width:650px){
+    .system-model{ opacity:.25; left:-12px; transform:translateY(-50%) scale(.48); }
+  }
+  @media (prefers-reduced-motion:reduce){
+    .system-model-shell,
+    .chip{ transition:none; }
+  }
+
+
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:1;
+    background:
+      linear-gradient(rgba(255,255,255,.012) 1px, transparent 1px);
+    background-size:100% 4px;
+    opacity:.22;
+    mix-blend-mode:screen;
+  }
+  body::after{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:2;
+    background:radial-gradient(circle at 28% 50%, transparent 0 22%, rgba(0,0,0,.28) 72%, rgba(0,0,0,.62) 100%);
+  }
+  .section-inner{ position:relative; z-index:5; }
+
+
+  .infra-traces{
+    position:fixed;
+    left:0;
+    top:50%;
+    width:30vw;
+    height:1px;
+    z-index:3;
+    pointer-events:none;
+    opacity:.32;
+  }
+  .infra-traces span{
+    position:absolute;
+    height:1px;
+    background:linear-gradient(90deg, transparent, rgba(95,160,201,.16), transparent);
+    transform-origin:left center;
+  }
+  .infra-traces span:nth-child(1){ width:210px; top:-82px; transform:rotate(16deg); }
+  .infra-traces span:nth-child(2){ width:250px; top:-28px; transform:rotate(7deg); }
+  .infra-traces span:nth-child(3){ width:235px; top:31px; transform:rotate(-8deg); }
+  .infra-traces span:nth-child(4){ width:190px; top:84px; transform:rotate(-17deg); }
+
 </style>
 </head>
 <body>
@@ -168,6 +384,30 @@
 <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
 <canvas id="netBg" aria-hidden="true"></canvas>
 
+<div class="infra-traces" aria-hidden="true">
+  <span></span><span></span><span></span><span></span>
+</div>
+
+
+<div class="system-model" id="systemModel" data-state="0" aria-hidden="true">
+  <div class="infra-stage">
+    <div class="infra-orbit">
+      <div class="infra-plane">
+        <div class="infra-edge"></div>
+        <div class="infra-die"></div>
+        <div class="infra-mem infra-m1"></div>
+        <div class="infra-mem infra-m2"></div>
+        <div class="infra-mem infra-m3"></div>
+        <div class="infra-mem infra-m4"></div>
+      </div>
+      <i class="infra-packet p1"></i>
+      <i class="infra-packet p2"></i>
+      <i class="infra-packet p3"></i>
+    </div>
+  </div>
+</div>
+  </div>
+</div>
 <nav class="sectionLabels" aria-label="Sections">
   <button data-target="intro">Home</button>
   <button data-target="about">About</button>
@@ -325,7 +565,15 @@
   // means it always lands exactly on the target layer, never stuck
   // between two. ----
   var currentSection = 0;
-  var isSnapping = false;
+
+  var systemModel = document.getElementById('systemModel');
+  var systemModelStates = [0,1,2,3,4,5];
+  function updateSystemModel(index){
+    if (!systemModel) return;
+    index = Math.max(0, Math.min(systemModelStates.length - 1, index));
+    systemModel.dataset.state = String(index);
+  }
+var isSnapping = false;
   // Which way the array's compute pass should sweep (see draw()) — true
   // for a forward pass (scrolling down), false for a backward pass
   // (scrolling up), the same forward/backward distinction as a training
@@ -353,6 +601,7 @@
     var fromY = window.scrollY;
     var toY = sections[index].getBoundingClientRect().top + window.scrollY;
     currentSection = index;
+    updateSystemModel(index);
     if (reduceMotion || fromY === toY){
       window.scrollTo(0, toY);
       progress = index;
@@ -734,6 +983,7 @@
     if (!reduceMotion){ requestAnimationFrame(loop); }
   }
 
+  updateSystemModel(0);
   buildGrid();
   loop();
 
