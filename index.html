@@ -402,6 +402,8 @@ let transition=null, raf=0, idleAnchor=performance.now()+650, lastBg=0, W=innerW
 let lastWheel=0,wheelSum=0, wheelTime=0, lastEnd=0, touch=null, pointer=null;
 let renderer=null, renderFailed=false;
 let pointerStamp=0, glowSprite=null, matrixBase=null, matrixCells=[];
+let touchHold=false, touchRelease=0;
+const TOUCH_FADE=1100, POINTER_POWER=1.15;
 // The fabric is lit only by the overlay: a warm pointer halo and the cool
 // matrix cells that flicker on by themselves. Everything else stays dark.
 // Ambient is near zero at rest, so unlit fabric stays invisible. A section
@@ -599,16 +601,26 @@ function cameraPose(now){
  }else p=blendPose(poses[current],poses[current],0);
  return applyDrift(p,now);
 }
+// A finger is a light too, but it leaves the glass; after release the halo
+// lingers and fades instead of snapping off.
+function pointerPower(now){
+ if(!pointer)return 0;
+ if(!pointer.touch||touchHold)return POINTER_POWER;
+ const q=(now-touchRelease)/TOUCH_FADE;
+ return q>=1?0:POINTER_POWER*(1-smooth(q));
+}
 // Lights the fabric sees: the warm pointer halo always wins a slot, the rest
 // go to whichever matrix cells happen to be lit right now.
-function sceneLights(){
+function sceneLights(now){
  lights.length=0;
+ const power=pointerPower(now);
+ if(pointer&&power<=0&&pointer.touch)pointer=null;
  const cells=activeCells.slice().sort((a,b)=>b.e-a.e);
  for(const a of cells){
-  if(lights.length>=MAX_LIGHTS-(pointer?1:0))break;
+  if(lights.length>=MAX_LIGHTS-(power>0?1:0))break;
   lights.push({x:a.x+9,y:a.y+9,r:138,i:a.e*.95,c:COOL});
  }
- if(pointer)lights.unshift({x:pointer.x,y:pointer.y,r:310,i:1.15,c:WARM});
+ if(power>0)lights.unshift({x:pointer.x,y:pointer.y,r:310,i:power,c:WARM});
  return lights;
 }
 // One wave clock drives both the 2D matrix pulse and the light band that
@@ -712,7 +724,7 @@ function buildMatrix(){
  ctx.beginPath();for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)ctx.rect(c*30+5.5,r*30+5.5,19,19);
  ctx.strokeStyle='rgba(140,153,166,.055)';ctx.lineWidth=.7;ctx.stroke();
  // Seeded per-cell clocks: sparse, slow flickers, never a random value per frame.
- const count=Math.min(cols*rows,64,Math.max(10,Math.floor(cols*rows*.035)));
+ const count=Math.min(cols*rows,64,Math.max(22,Math.floor(cols*rows*.035)));
  let seed=18371;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
  matrixCells=[];const used=new Set();
  for(let i=0;i<count;i++){
@@ -721,6 +733,7 @@ function buildMatrix(){
  }
 }
 function drawOverlay(now,sweep){
+ const power=pointerPower(now)/POINTER_POWER;
  bgc.clearRect(0,0,W,H);
  bgc.drawImage(matrixBase,0,0,W,H);
  activeCells.length=0;
@@ -735,13 +748,13 @@ function drawOverlay(now,sweep){
   bgc.globalAlpha=1;
  }
  if(sweep){drawPulse(bgc,sweep.t,sweep.amp,sweep.forward);if(!transition)document.body.dataset.heartbeat='idle';}
- if(pointer){
-  bgc.drawImage(glowSprite,pointer.x-160,pointer.y-160);
+ if(pointer&&power>0){
+  bgc.globalAlpha=power;bgc.drawImage(glowSprite,pointer.x-160,pointer.y-160);
   const col=Math.floor(pointer.x/30),row=Math.floor(pointer.y/30);
   for(let r=Math.max(0,row-4);r<=row+4;r++)for(let c=Math.max(0,col-4);c<=col+4;c++){
    const x=c*30+15,y=r*30+15,d=Math.hypot(x-pointer.x,y-pointer.y),light=Math.max(0,1-d/125);
    if(!light)continue;
-   bgc.globalAlpha=light*light*.48;bgc.fillStyle='#e8a052';bgc.fillRect(x-9,y-9,18,18);
+   bgc.globalAlpha=light*light*.48*power;bgc.fillStyle='#e8a052';bgc.fillRect(x-9,y-9,18,18);
   }
   bgc.globalAlpha=1;
  }
@@ -750,14 +763,14 @@ function drawScene(now){
  const sweep=sceneSweep(now);
  drawOverlay(now,sweep);
  const reveal=revealAmount(now);
- if(renderer&&!renderFailed)renderer.render(cameraPose(now),now,sceneLights(),sweep,AMBIENT+REVEAL*reveal);
+ if(renderer&&!renderFailed)renderer.render(cameraPose(now),now,sceneLights(now),sweep,AMBIENT+REVEAL*reveal);
 }
 function frame(now){
  raf=0;if(document.hidden)return;
  if(transition)stepTransition(now);
  const budget=transition?0:(now-pointerStamp<120?12:W<=900?48:32);
  if(motion.matches||now-lastBg>=budget){drawScene(now);lastBg=now;}
- if(transition||!motion.matches||revealAmount(now)>0)ensureFrame();
+ if(transition||!motion.matches||revealAmount(now)>0||pointerPower(now)>0)ensureFrame();
 }
 function ensureFrame(){if(!raf&&!document.hidden)raf=requestAnimationFrame(frame);}
 function resize(){
@@ -794,6 +807,20 @@ window.addEventListener('touchend',e=>{
  if(dy>0?t.edgeDown:t.edgeUp)go(current+(dy>0?1:-1));
 },{passive:true});
 window.addEventListener('touchcancel',()=>touch=null,{passive:true});
+// Touch devices have no hover, so the finger carries the halo that a mouse
+// would. Registered separately from the swipe handlers above so the two
+// concerns stay independent.
+function carryLight(e,holding){
+ const t=(e.touches&&e.touches[0])||(e.changedTouches&&e.changedTouches[0]);
+ if(!t)return;
+ pointer={x:t.clientX,y:t.clientY,touch:true};
+ touchHold=holding;if(!holding)touchRelease=performance.now();
+ pointerStamp=performance.now();lastBg=0;ensureFrame();
+}
+window.addEventListener('touchstart',e=>carryLight(e,true),{passive:true});
+window.addEventListener('touchmove',e=>carryLight(e,true),{passive:true});
+window.addEventListener('touchend',e=>carryLight(e,false),{passive:true});
+window.addEventListener('touchcancel',e=>carryLight(e,false),{passive:true});
 window.addEventListener('keydown',e=>{
  if(e.key==='Escape'&&transition){e.preventDefault();finish();return;}
  if(editable(e.target))return;
