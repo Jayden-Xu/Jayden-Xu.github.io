@@ -30,8 +30,6 @@
   body{
     margin:0;
     background-color:var(--bg);
-    background-image: radial-gradient(var(--rule-soft) 1px, transparent 1.4px);
-    background-size: 30px 30px;
     color:var(--text);
     font-family:var(--font-sans);
     line-height:1.65;
@@ -44,7 +42,14 @@
   .progress{ position:fixed; top:0; left:0; width:100%; height:2px; background:var(--rule); z-index:30; pointer-events:none; }
   .progress-fill{ height:100%; background:var(--accent-warm); width:0%; }
 
-  #netBg{ position:fixed; inset:0; width:100%; height:100%; z-index:-1; pointer-events:none; }
+  /* Two fixed background layers, always on: the lit wireframe fabric (WebGL)
+     and the matrix/glow overlay (2D) that acts as its light source. */
+  #packageCanvas{ position:fixed; inset:0; display:block; width:100%; height:100%; z-index:0; pointer-events:none; background:#000; }
+  #netBg{ position:fixed; inset:0; width:100%; height:100%; z-index:1; pointer-events:none; }
+
+  /* Section content + chrome that gets faded away while the chip takes over
+     the screen during a transition (see setContentVisibility in JS). */
+  #pageContent{ opacity:1; }
 
   .sectionLabels{
     position:fixed; right:28px; top:0; height:100vh; height:100dvh; z-index:20;
@@ -162,176 +167,20 @@
   .copied-tip.show{ opacity:1; }
 
 
-  /* AI INFRA VISUAL — decorative left rail, independent of page layout */
-  .system-model{
-    position:fixed;
-    left:clamp(18px, 4.5vw, 68px);
-    top:50%;
-    width:210px;
-    height:210px;
-    transform:translateY(-50%);
-    z-index:8;
-    pointer-events:none;
-    opacity:.78;
+  /* The model never takes over the screen; content simply slides across it. */
+  html.enhanced, html.enhanced body{overflow:hidden; overscroll-behavior:none;}
+  #pageContent{position:relative;z-index:4;}
+  .section{overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#303640 transparent;}
+  .section:focus{outline:none;}
+  .progress-fill{width:100%;transform:scaleX(0);transform-origin:left;}
+  .section-inner{will-change:auto;}
+  @media(max-width:900px){
+    .sectionLabels{display:flex;top:auto;bottom:18px;right:0;left:0;height:30px;justify-content:center;gap:12px;}
+    .sectionLabels button{position:static;transform:none;font-size:0;padding:10px 4px;}
+    .sectionLabels button::after{content:'';display:block;width:5px;height:5px;border-radius:50%;background:currentColor;}
+    .section{padding:76px 26px;}.project-head,.edu-head{flex-wrap:wrap;}
   }
-  .infra-stage{
-    position:absolute;
-    inset:0;
-    perspective:1000px;
-    transform-style:preserve-3d;
-  }
-  .infra-orbit{
-    position:absolute;
-    left:50%;
-    top:50%;
-    width:170px;
-    height:170px;
-    --rx:61deg;
-    --rz:-38deg;
-    transform:translate(-50%,-50%) rotateX(var(--rx)) rotateZ(var(--rz));
-    transform-style:preserve-3d;
-    transition:transform 1.15s cubic-bezier(.2,.72,.2,1);
-  }
-  .infra-plane{
-    position:absolute;
-    left:50%;
-    top:50%;
-    width:116px;
-    height:116px;
-    transform:translate(-50%,-50%) translateZ(12px);
-    border:1px solid rgba(95,160,201,.48);
-    background:
-      linear-gradient(rgba(95,160,201,.11) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(95,160,201,.11) 1px, transparent 1px),
-      rgba(5,8,12,.48);
-    background-size:14px 14px;
-    box-shadow:
-      0 0 32px rgba(95,160,201,.08),
-      inset 0 0 28px rgba(95,160,201,.05);
-    transform-style:preserve-3d;
-  }
-  .infra-die{
-    position:absolute;
-    left:50%;
-    top:50%;
-    width:66px;
-    height:66px;
-    transform:translate(-50%,-50%) translateZ(18px);
-    border:1px solid rgba(232,150,61,.62);
-    background:
-      linear-gradient(rgba(232,150,61,.13) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(232,150,61,.13) 1px, transparent 1px),
-      rgba(12,12,12,.28);
-    background-size:11px 11px;
-    box-shadow:0 0 30px rgba(232,150,61,.10);
-  }
-  .infra-die::before{
-    content:"";
-    position:absolute;
-    inset:13px;
-    border:1px solid rgba(232,150,61,.55);
-    box-shadow:inset 0 0 18px rgba(232,150,61,.08);
-  }
-  .infra-die::after{
-    content:"";
-    position:absolute;
-    width:18px;
-    height:18px;
-    left:50%;
-    top:50%;
-    transform:translate(-50%,-50%);
-    border:1px solid rgba(232,150,61,.75);
-    box-shadow:0 0 18px rgba(232,150,61,.16);
-  }
-
-  /* HBM-like memory stacks */
-  .infra-mem{
-    position:absolute;
-    width:21px;
-    height:55px;
-    border:1px solid rgba(95,160,201,.40);
-    background:repeating-linear-gradient(
-      to bottom,
-      rgba(95,160,201,.09) 0 4px,
-      transparent 4px 8px
-    );
-    transform:translateZ(7px);
-    box-shadow:0 0 15px rgba(95,160,201,.05);
-  }
-  .infra-m1{ left:5px; top:28px; }
-  .infra-m2{ right:5px; top:28px; }
-  .infra-m3{ left:22px; bottom:2px; height:20px; width:55px; }
-  .infra-m4{ right:22px; bottom:2px; height:20px; width:55px; }
-
-  /* Package / substrate edge */
-  .infra-edge{
-    position:absolute;
-    left:50%;
-    top:50%;
-    width:116px;
-    height:116px;
-    transform:translate(-50%,-50%) translateZ(0);
-    border:1px solid rgba(154,160,170,.18);
-    box-shadow:0 0 0 10px rgba(154,160,170,.025);
-  }
-
-  /* Moving data packets on the interconnect */
-  .infra-packet{
-    position:absolute;
-    width:4px;
-    height:4px;
-    border-radius:50%;
-    background:var(--accent-warm);
-    box-shadow:0 0 9px rgba(232,150,61,.72);
-    opacity:0;
-  }
-  .p1{ left:25px; top:88px; animation:packet1 3.2s linear infinite; }
-  .p2{ left:90px; top:25px; animation:packet2 3.8s linear infinite .7s; }
-  .p3{ left:143px; top:116px; animation:packet3 4.2s linear infinite 1.2s; }
-  @keyframes packet1{
-    0%,8%{opacity:0;transform:translate(0,0)}
-    12%{opacity:1}
-    48%{transform:translate(58px,-38px)}
-    52%{opacity:1}
-    60%,100%{opacity:0;transform:translate(78px,-52px)}
-  }
-  @keyframes packet2{
-    0%,10%{opacity:0;transform:translate(0,0)}
-    16%{opacity:1}
-    55%{transform:translate(-38px,56px)}
-    62%,100%{opacity:0;transform:translate(-52px,76px)}
-  }
-  @keyframes packet3{
-    0%,12%{opacity:0;transform:translate(0,0)}
-    18%{opacity:1}
-    56%{transform:translate(-57px,-20px)}
-    65%,100%{opacity:0;transform:translate(-70px,-28px)}
-  }
-
-  /* Section-specific viewpoints: the same system, different camera angles */  .system-model[data-state="0"] .infra-orbit{ --rx:61deg; --rz:-38deg; }
-  .system-model[data-state="1"] .infra-orbit{ --rx:70deg; --rz:-4deg; }
-  .system-model[data-state="2"] .infra-orbit{ --rx:48deg; --rz:26deg; }
-  .system-model[data-state="3"] .infra-orbit{ --rx:57deg; --rz:72deg; }
-  .system-model[data-state="4"] .infra-orbit{ --rx:76deg; --rz:104deg; }
-  .system-model[data-state="5"] .infra-orbit{ --rx:42deg; --rz:146deg; }
-
-  @media (max-width:1100px){
-    .system-model{ left:12px; transform:translateY(-50%) scale(.78); transform-origin:left center; }
-  }
-  @media (max-width:1100px){
-    .system-model{ left:18px; width:150px; transform:translateY(-50%) scale(.82); transform-origin:left center; }
-  }
-  @media (max-width:900px){
-    .system-model{ opacity:.42; left:8px; transform:translateY(-50%) scale(.62); }
-  }
-  @media (max-width:650px){
-    .system-model{ opacity:.25; left:-12px; transform:translateY(-50%) scale(.48); }
-  }
-  @media (prefers-reduced-motion:reduce){
-    .system-model-shell,
-    .chip{ transition:none; }
-  }
-
+  /* Reduced motion keeps the fabric, but renders it as a still frame. */
 
   body::before{
     content:"";
@@ -351,9 +200,13 @@
     inset:0;
     pointer-events:none;
     z-index:2;
-    background:radial-gradient(circle at 28% 50%, transparent 0 22%, rgba(0,0,0,.28) 72%, rgba(0,0,0,.62) 100%);
+    background:radial-gradient(circle at 50% 50%, transparent 0 30%, rgba(0,0,0,.22) 74%, rgba(0,0,0,.58) 100%);
   }
   .section-inner{ position:relative; z-index:5; }
+  .readability-scrim{
+    position:fixed; inset:0; z-index:1; pointer-events:none;
+    background:radial-gradient(ellipse 54% 46% at 50% 50%, rgba(0,0,0,.66) 0%, rgba(0,0,0,.40) 52%, rgba(0,0,0,0) 80%);
+  }
 
 
   .infra-traces{
@@ -382,32 +235,17 @@
 <body>
 
 <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+<canvas id="packageCanvas" aria-hidden="true"></canvas>
 <canvas id="netBg" aria-hidden="true"></canvas>
+
+<div id="pageContent">
 
 <div class="infra-traces" aria-hidden="true">
   <span></span><span></span><span></span><span></span>
 </div>
 
+<div class="readability-scrim" aria-hidden="true"></div>
 
-<div class="system-model" id="systemModel" data-state="0" aria-hidden="true">
-  <div class="infra-stage">
-    <div class="infra-orbit">
-      <div class="infra-plane">
-        <div class="infra-edge"></div>
-        <div class="infra-die"></div>
-        <div class="infra-mem infra-m1"></div>
-        <div class="infra-mem infra-m2"></div>
-        <div class="infra-mem infra-m3"></div>
-        <div class="infra-mem infra-m4"></div>
-      </div>
-      <i class="infra-packet p1"></i>
-      <i class="infra-packet p2"></i>
-      <i class="infra-packet p3"></i>
-    </div>
-  </div>
-</div>
-  </div>
-</div>
 <nav class="sectionLabels" aria-label="Sections">
   <button data-target="intro">Home</button>
   <button data-target="about">About</button>
@@ -417,7 +255,7 @@
   <button data-target="contact">Contact</button>
 </nav>
 
-<main>
+<main id="pageSections">
 
   <section class="section" id="intro" data-label="Home">
     <div class="section-inner">
@@ -545,466 +383,441 @@
 
 </main>
 
+</div>
+
 <script>
 (function(){
-  var sections = document.querySelectorAll('.section');
-  var layerCount = sections.length;
-  var progressFill = document.getElementById('progressFill');
-  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // Continuous position in [0, layerCount-1] — e.g. 1.35 means "35% of the
-  // way from layer 1 into layer 2". Driven directly off scroll distance so
-  // the network's highlight and flow move exactly as far as the page does,
-  // instead of snapping between whole layers.
-  var progress = 0;
+'use strict';
+const $=s=>document.querySelector(s);
+const sections=[...document.querySelectorAll('.section')], buttons=[...document.querySelectorAll('.sectionLabels button')];
+const content=$('#pageContent'), bg=$('#netBg');
+const bgc=bg.getContext('2d');
+const motion=matchMedia('(prefers-reduced-motion: reduce)');
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const mix=(a,b,t)=>a+(b-a)*t;
+const smooth=t=>t*t*t*(t*(t*6-15)+10); // C2 continuous: no velocity/acceleration jumps at camera boundaries.
+const vMix=(a,b,t)=>a.map((v,i)=>mix(v,b[i],t));
+let current=Math.max(0,sections.findIndex(s=>s.id===location.hash.slice(1)));
+let transition=null, raf=0, idleAnchor=performance.now()+650, lastBg=0, W=innerWidth,H=innerHeight;
+let lastWheel=0,wheelSum=0, wheelTime=0, lastEnd=0, touch=null, pointer=null;
+let renderer=null, renderFailed=false;
+let pointerStamp=0, glowSprite=null, matrixBase=null, matrixCells=[];
+// The fabric is lit only by the overlay: a warm pointer halo and the cool
+// matrix cells that flicker on by themselves. Everything else stays dark.
+const AMBIENT=.065, WARM=[1,.68,.36], COOL=[.60,.79,1], MAX_LIGHTS=6;
+let activeCells=[], lights=[];
+// Section anchors are neighboring districts in the same unbounded compute fabric.
+const poses=[
+ {target:[0,.55,0],dist:6.2,phi:.80,theta:.30},
+ {target:[0,.80,-10],dist:5.7,phi:.70,theta:-.26},
+ {target:[0,1.60,-20],dist:6.8,phi:.86,theta:.46},
+ {target:[0,.85,-30],dist:5.9,phi:.68,theta:-.38},
+ {target:[0,1.15,-40],dist:6.3,phi:.78,theta:.20},
+ {target:[0,.75,-50],dist:5.5,phi:.92,theta:-.32}
+];
 
-  // ---- paginated navigation: one wheel tick / swipe / arrow key always
-  // advances exactly one section, animated ourselves (rather than the
-  // browser's native smooth scroll) so we control both the speed and the
-  // exact landing point. Driving `progress` directly from the animation's
-  // own time fraction — instead of re-deriving it from scroll geometry —
-  // means it always lands exactly on the target layer, never stuck
-  // between two. ----
-  var currentSection = 0;
-
-  var systemModel = document.getElementById('systemModel');
-  var systemModelStates = [0,1,2,3,4,5];
-  function updateSystemModel(index){
-    if (!systemModel) return;
-    index = Math.max(0, Math.min(systemModelStates.length - 1, index));
-    systemModel.dataset.state = String(index);
+// Screen-space line segments: real 3D edges with a consistent, antialiased width.
+// No solid faces, image textures, component labels, or component-specific colors.
+function createPackage(canvas){
+ const gl=canvas.getContext('webgl',{alpha:false,antialias:true,premultipliedAlpha:false,powerPreference:'low-power'});
+ if(!gl)return null;
+ const vs=`attribute vec3 aStart,aEnd;attribute vec2 aCorner;attribute float aStrength;
+ uniform mat4 uView,uProjection;uniform vec3 uOrigin;uniform vec2 uResolution;uniform float uPixelRatio;
+ varying vec3 vWorld;varying float vEdge,vStrength;
+ void main(){vec3 start=aStart+uOrigin,end=aEnd+uOrigin;vec4 ca=uProjection*uView*vec4(start,1.0),cb=uProjection*uView*vec4(end,1.0);
+ vEdge=aCorner.y;vStrength=aStrength;vWorld=mix(start,end,aCorner.x);
+ if(ca.w<.08||cb.w<.08){vStrength=0.0;gl_Position=vec4(2.0,2.0,2.0,1.0);return;}
+ vec2 delta=(cb.xy/cb.w-ca.xy/ca.w)*uResolution;
+ vec2 normal=vec2(-delta.y,delta.x)/max(length(delta),.001);
+ vec4 position=mix(ca,cb,aCorner.x);position.xy+=normal*aCorner.y*(mix(1.2,3.4,clamp(aStrength,0.0,1.0))*uPixelRatio)/uResolution*position.w;gl_Position=position;}`;
+ // Lights are supplied in screen space (top-left origin, device pixels) so the
+ // 2D overlay and the 3D fabric are lit by exactly the same sources.
+ const fs=`precision mediump float;varying vec3 vWorld;varying float vEdge,vStrength;
+ uniform vec3 uEye;uniform vec2 uViewport;
+ uniform float uTime,uAmbient,uSweepHead,uSweepWidth,uSweepGain;
+ uniform vec4 uLights[6];uniform vec3 uLightColor[6];
+ void main(){float aa=1.0-smoothstep(.38,1.0,abs(vEdge));
+ float fog=1.0-smoothstep(11.0,27.0,length(vWorld.xz-uEye.xz));
+ float activity=.94+.06*pow(max(0.0,sin(vWorld.z*1.4-uTime*2.0)),8.0);
+ vec2 frag=vec2(gl_FragCoord.x,uViewport.y-gl_FragCoord.y);
+ float total=0.0;vec3 tint=vec3(0.0);
+ for(int i=0;i<6;i++){
+  vec4 L=uLights[i];
+  float f=1.0-smoothstep(0.0,L.z,distance(frag,L.xy));
+  f=f*f*L.w;total+=f;tint+=uLightColor[i]*f;
+ }
+ if(uSweepGain>0.0){
+  float f=(1.0-smoothstep(0.0,uSweepWidth,abs(frag.x+frag.y-uSweepHead)))*uSweepGain;
+  f=f*f;total+=f;tint+=vec3(1.0,.72,.42)*f;
+ }
+ vec3 tone=total>.0001?tint/total:vec3(.70,.78,.90);
+ float alpha=aa*fog*vStrength*activity*(uAmbient+min(total,1.6));
+ gl_FragColor=vec4(tone,alpha);}`;
+ function shader(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;}
+ const program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,vs));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(program);
+ if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));gl.useProgram(program);
+ const vertices=[];
+ function line(a,b,strength=.42){for(const corner of [[0,-1],[1,-1],[1,1],[0,-1],[1,1],[0,1]])vertices.push(...a,...b,...corner,strength);}
+ function ring(x,y,z,w,d,strength=.42){const a=[x-w/2,y,z-d/2],b=[x+w/2,y,z-d/2],c=[x+w/2,y,z+d/2],e=[x-w/2,y,z+d/2];line(a,b,strength);line(b,c,strength);line(c,e,strength);line(e,a,strength);}
+ function cage(x,y,z,w,h,d,strength=.42){ring(x,y,z,w,d,strength);ring(x,y+h,z,w,d,strength);for(const dx of [-w/2,w/2])for(const dz of [-d/2,d/2])line([x+dx,y,z+dz],[x+dx,y+h,z+dz],strength);}
+ // Feature hierarchy: broad package ribs, medium component edges, fine internal routing.
+ function polygon(x,y,z,r,sides=8,strength=.72,angle=0){
+  const points=[];for(let k=0;k<sides;k++){const a=angle+k*Math.PI*2/sides;points.push([x+Math.cos(a)*r,y,z+Math.sin(a)*r]);}
+  for(let k=0;k<sides;k++)line(points[k],points[(k+1)%sides],strength);return points;
+ }
+ function grid(x,y,z,w,d,n,strength=.34){ring(x,y,z,w,d,.64);for(let k=1;k<n;k++){line([x-w/2+w*k/n,y,z-d/2],[x-w/2+w*k/n,y,z+d/2],strength);line([x-w/2,y,z-d/2+d*k/n],[x+w/2,y,z-d/2+d*k/n],strength);}}
+ function ports(x,y,z,w,d,n){for(let k=0;k<n;k++){const q=(k+.5)/n;for(const side of [-1,1]){line([x-w/2+w*q,y,z+side*d/2],[x-w/2+w*q,y-.27,z+side*(d/2+.30)],.47);line([x+side*w/2,y,z-d/2+d*q],[x+side*(w/2+.30),y-.27,z-d/2+d*q],.47);}}}
+ function district(kind,x,z,detailed){
+  cage(x,-.48,z,8.75,.24,8.75,.48);ring(x,-.14,z,8.35,8.35,.63);
+  if(detailed){
+   ports(x,-.15,z,8.35,8.35,18);for(let k=1;k<5;k++)ring(x,-.44+k*.055,z,8.65,8.65,.22);
+   for(const side of [-1,1])for(let k=0;k<14;k++){
+    const q=-3.4+k*.52;ring(x+side*3.85,-.10,z+q,.24,.32,.34);
+    line([x+q,-.11,z+side*4.08],[x+q+.22,-.11,z+side*3.72],.25);
+   }
   }
-var isSnapping = false;
-  // Which way the array's compute pass should sweep (see draw()) — true
-  // for a forward pass (scrolling down), false for a backward pass
-  // (scrolling up), the same forward/backward distinction as a training
-  // loop's forward and backward passes.
-  var navForward = true;
-  // How far through the current page-flip's snap animation we are, 0..1,
-  // always increasing over time regardless of nav direction (see draw()'s
-  // pass sweep). progress's own fractional part looks similar but isn't
-  // safe to reuse here: floor(progress) flips which side of an integer it
-  // rounds to depending on whether progress is rising or falling, so that
-  // fraction actually runs backwards for an upward page-flip.
-  var transitionT = 0;
-  // Wall-clock offset the idle heartbeat's cycle is measured from (see
-  // draw()) — reset to "now" every time a page-flip finishes, so the
-  // heartbeat always resumes from the start of a fresh, silent cycle
-  // instead of picking up wherever its unsynced clock happened to land,
-  // which could be mid-pulse and read as a sudden flash right as the
-  // real pass cuts out.
-  var idlePulseAnchor = 0;
-  function easeInOutCubic(t){ return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
-  function goToSection(index){
-    index = Math.max(0, Math.min(sections.length - 1, index));
-    var fromIndex = currentSection;
-    if (index !== fromIndex) navForward = index > fromIndex;
-    var fromY = window.scrollY;
-    var toY = sections[index].getBoundingClientRect().top + window.scrollY;
-    currentSection = index;
-    updateSystemModel(index);
-    if (reduceMotion || fromY === toY){
-      window.scrollTo(0, toY);
-      progress = index;
-      idlePulseAnchor = performance.now() / 1000;
-      updateSectionLabels();
-      return;
+  if(kind===0){ // Radial package: concentric octagonal decks, spokes and satellite tiles.
+   const levels=detailed?5:2;
+   for(let j=0;j<levels;j++)polygon(x,j*.15,z,3.60-j*.24,8,.72,Math.PI/8);
+   const top=polygon(x,.75,z,2.12,8,.84,Math.PI/8),bottom=polygon(x,-.05,z,2.65,8,.56,Math.PI/8);
+   for(let k=0;k<8;k++){line(top[k],bottom[k],.7);const a=Math.PI/8+k*Math.PI/4;line([x+Math.cos(a)*.68,.76,z+Math.sin(a)*.68],top[k],.57);}
+   polygon(x,.76,z,.68,8,.87,Math.PI/8);grid(x,.30,z,1.05,1.05,detailed?7:2,.35);
+   if(detailed){
+    for(let j=1;j<6;j++)polygon(x,.755-j*.035,z,.68+j*.28,8,.38,Math.PI/8);
+    for(let k=0;k<32;k++){const a=Math.PI/8+k*Math.PI/16;line([x+Math.cos(a)*.73,.76,z+Math.sin(a)*.73],[x+Math.cos(a)*2.06,.60,z+Math.sin(a)*2.06],k%4?.28:.56);}
+   }
+   if(detailed)for(let k=0;k<8;k++){const a=k*Math.PI/4;const px=x+Math.cos(a)*3.45,pz=z+Math.sin(a)*3.45;cage(px,0,pz,.72,.4,.72,.54);grid(px,.4,pz,.56,.56,4,.28);}
+  }else if(kind===1){ // Tensor floorplan: nine chiplets, hierarchical meshes, crossbar channels.
+   for(let row=-1;row<=1;row++)for(let col=-1;col<=1;col++){
+    const px=x+col*2.18,pz=z+row*2.18,h=col===0&&row===0?.82:.43;
+    cage(px,-.05,pz,1.91,h,1.91,.75);ring(px,h-.05,pz,1.65,1.65,.53);grid(px,h-.04,pz,1.38,1.38,detailed?8:2,.34);
+    if(detailed)for(let r=-1;r<=1;r++)for(let c=-1;c<=1;c++)ring(px+c*.43,h-.03,pz+r*.43,.30,.30,.38);
+   }
+   for(const side of [-1,1])for(let k=0;k<(detailed?8:2);k++){const q=side*(1.01+k*.025);line([x+q,.03,z-3.7],[x+q,.03,z+3.7],.45);line([x-3.7,.03,z+q],[x+3.7,.03,z+q],.45);}
+  }else if(kind===2){ // Memory: tall stacks, staggered terraces and vertical vias.
+   const sites=[[0,0,2.10],[-2.50,-2.1,1.35],[2.5,-2.1,1.68],[-2.5,2.1,.95],[2.5,2.1,1.32]];
+   for(const [dx,dz,h]of sites){const px=x+dx,pz=z+dz;cage(px,-.02,pz,1.85,h,2.25,.82);
+    const count=detailed?10:3;for(let j=1;j<count;j++)ring(px,h*j/count-.02,pz,1.85,2.25,.45);
+    grid(px,h-.02,pz,1.58,1.94,detailed?6:2,.40);
+    if(detailed)for(let k=1;k<7;k++){const q=-.87+k*.25;line([px+q,0,pz-1.125],[px+q,h,pz-1.125],.35);}
+   }
+   if(detailed)for(let k=0;k<12;k++){const q=(k-5.5)*.12;line([x+q,-.08,z-4],[x+q,-.08,z+4],.35);}
+  }else if(kind===3){ // Switch fabric: crossing bridges, diagonal routes and port islands.
+   cage(x,.22,z,2.50,.55,2.5,.85);polygon(x,.79,z,1.06,8,.76);grid(x,.8,z,1.20,1.20,detailed?8:3,.36);
+   for(let arm=0;arm<4;arm++){
+    const a=arm*Math.PI/2,dx=Math.cos(a),dz=Math.sin(a),nx=-dz,nz=dx;
+    cage(x+dx*3.1,-.02,z+dz*3.1,1.40,.50,1.40,.68);
+    for(let k=0;k<(detailed?16:4);k++){
+     const q=(k/((detailed?16:4)-1)-.5)*.86;
+     const points=[[x+dx*1.20+nx*q,.57,z+dz*1.20+nz*q],[x+dx*1.8+nx*q,1.12,z+dz*1.8+nz*q],[x+dx*2.6+nx*q,1.12,z+dz*2.6+nz*q],[x+dx*3.1+nx*q,.50,z+dz*3.1+nz*q]];
+     for(let j=0;j<3;j++)line(points[j],points[j+1],k%4?.39:.67);
     }
-    isSnapping = true;
-    var duration = 1100;
-    var startTime = null;
-    function step(ts){
-      if (startTime === null) startTime = ts;
-      var t = Math.min(1, (ts - startTime) / duration);
-      var eased = easeInOutCubic(t);
-      window.scrollTo(0, fromY + (toY - fromY) * eased);
-      progress = fromIndex + (index - fromIndex) * eased;
-      transitionT = eased;
-      updateSectionLabels();
-      if (t < 1){
-        requestAnimationFrame(step);
-      } else {
-        progress = index;
-        isSnapping = false;
-        idlePulseAnchor = performance.now() / 1000;
-        updateSectionLabels();
-      }
-    }
-    requestAnimationFrame(step);
+    if(detailed)grid(x+dx*3.1,.49,z+dz*3.1,1.16,1.16,5,.34);
+   }
+  }else if(kind===4){ // Substrate: terraced routing layers, ribs and through-layer channels.
+   const n=detailed?8:4;
+   for(let j=0;j<n;j++){const h=j*.15,w=7-j*.48;ring(x,h,z,w,w,.66);if(detailed)for(let k=1;k<10;k++){const q=-w/2+k*w/10;line([x+q,h,z-w/2],[x+q,h,z+w/2],.25);}}
+   for(const dx of [-1.32,1.32])for(const dz of [-1.32,1.32]){cage(x+dx,0,z+dz,.46,1.5,.46,.76);if(detailed)for(let j=1;j<8;j++)ring(x+dx,j*.18,z+dz,.46,.46,.4);}
+   grid(x,1.18,z,2.0,2.0,detailed?10:3,.45);
+  }else{ // I/O: nested vertical portals, long connector combs and twin cable banks.
+   for(let j=0;j<(detailed?8:3);j++){
+    const depth=z-j*.28,w=2.4+j*.18,h=1.20+j*.10;
+    const pts=[[x-w/2,.10,depth],[x-w/2,h,depth],[x+w/2,h,depth],[x+w/2,.10,depth]];
+    for(let k=0;k<4;k++)line(pts[k],pts[(k+1)%4],j===0?.86:.46);
+   }
+   for(const side of [-1,1]){
+    cage(x+side*2.7,0,z,1.14,.9,5.8,.76);
+    const n=detailed?20:5;for(let j=0;j<n;j++){const q=-2.6+j*5.2/(n-1);ring(x+side*2.7,.9,z+q,1.05,.12,.50);line([x+side*2.7,.88,z+q],[x+side*1.8,.15,z+q],.43);}
+   }
+   if(detailed)for(let k=0;k<16;k++){const q=(k-7.5)*.12;line([x+q,.08,z+3.5],[x+q,.08,z-3.5],.42);}
   }
-
-  // With navigation fully paginated, the window only ever rests exactly on
-  // a section boundary — no need to re-derive progress from scroll
-  // geometry between layers; goToSection's own animation already drives it
-  // precisely while a transition is in flight.
-  function updateActiveSection(){
-    if (!isSnapping){ progress = currentSection; }
-    updateSectionLabels();
-    // bandY is only populated once buildGrid() has run — guards against
-    // the early onScroll() call below firing before that setup executes.
-    if (reduceMotion && typeof bandY !== 'undefined'){ draw(); }
+ }
+ // Six distinct detailed landmarks; surrounding low-detail districts continue
+ // the landscape past the view frustum without repeating one identical tile.
+ for(let row=-9;row<=4;row++)for(let col=-4;col<=4;col++){
+  const kind=((-row+col*2)%6+6)%6;
+  district(kind,col*10,row*10,col===0&&row<=0&&row>=-5);
+  for(const side of [-1,1]){
+   line([col*10-5,-.2,row*10+side*4.8],[col*10+5,-.2,row*10+side*4.8],.30);
+   line([col*10+side*4.8,-.2,row*10-5],[col*10+side*4.8,-.2,row*10+5],.30);
   }
-
-  // ---- section label sidebar: names the sections the background array
-  // only shows as bands, and crossfades brightness the same way the array
-  // does. Positioned with the exact same 10%-90% spread used for the
-  // canvas' bandY (see buildGrid) so each label lines up with its band
-  // instead of only approximating it via flex distribution. ----
-  var labelButtons = document.querySelectorAll('.sectionLabels button');
-  function positionSectionLabels(){
-    labelButtons.forEach(function(btn, i){
-      var pct = labelButtons.length === 1 ? 50 : 10 + 80 * i / (labelButtons.length - 1);
-      btn.style.top = pct + '%';
-    });
+ }
+ const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.STATIC_DRAW);
+ [['aStart',3,0],['aEnd',3,12],['aCorner',2,24],['aStrength',1,32]].forEach(([name,size,offset])=>{const a=gl.getAttribLocation(program,name);gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,size,gl.FLOAT,false,36,offset);});
+ const u={};['uView','uProjection','uEye','uOrigin','uResolution','uViewport','uPixelRatio','uTime','uAmbient','uSweepHead','uSweepWidth','uSweepGain','uLights[0]','uLightColor[0]'].forEach(n=>u[n]=gl.getUniformLocation(program,n));
+ const lightData=new Float32Array(MAX_LIGHTS*4),colorData=new Float32Array(MAX_LIGHTS*3);
+ const norm=v=>{const l=Math.hypot(...v);return v.map(x=>x/l);};const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];const dot=(a,b)=>a.reduce((s,x,i)=>s+x*b[i],0);
+ function view(eye,target){const z=norm(eye.map((v,i)=>v-target[i])),x=norm(cross([0,1,0],z)),y=cross(z,x);return new Float32Array([x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-dot(x,eye),-dot(y,eye),-dot(z,eye),1]);}
+ let aspect=1,dpr=1;
+ function resize(){dpr=Math.min(devicePixelRatio||1,1.6,Math.sqrt(2200000/(W*H)));canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);aspect=W/H;gl.viewport(0,0,canvas.width,canvas.height);}
+ function render(p,time,lights,sweep){
+  const distance=p.distance*(aspect<.75?1.18:1),sp=Math.sin(p.phi),cp=Math.cos(p.phi);
+  const eye=[p.target[0]+distance*sp*Math.sin(p.theta),p.target[1]+distance*cp,p.target[2]+distance*sp*Math.cos(p.theta)];
+  const f=1/Math.tan((p.fov||.69)/2),near=.08,far=90;const proj=new Float32Array([f/aspect,0,0,0,0,f,0,0,0,0,(far+near)/(near-far),-1,0,0,2*far*near/(near-far),0]);
+  gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT);gl.disable(gl.DEPTH_TEST);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
+  for(let i=0;i<MAX_LIGHTS;i++){
+   const L=lights&&lights[i];
+   lightData[i*4]=L?L.x*dpr:0;lightData[i*4+1]=L?L.y*dpr:0;
+   lightData[i*4+2]=L?Math.max(1,L.r*dpr):1;lightData[i*4+3]=L?L.i:0;
+   colorData[i*3]=L?L.c[0]:0;colorData[i*3+1]=L?L.c[1]:0;colorData[i*3+2]=L?L.c[2]:0;
   }
-  positionSectionLabels();
-  window.addEventListener('resize', positionSectionLabels);
-  labelButtons.forEach(function(btn, i){
-    btn.addEventListener('click', function(){ goToSection(i); });
-  });
-  function updateSectionLabels(){
-    labelButtons.forEach(function(btn, i){
-      var w = Math.max(0, 1 - Math.abs(i - progress));
-      btn.style.opacity = (0.4 + 0.6 * w).toFixed(3);
-      btn.style.color = w > 0.5 ? 'var(--accent-warm)' : 'var(--text-dim)';
-    });
+  gl.uniform4fv(u['uLights[0]'],lightData);gl.uniform3fv(u['uLightColor[0]'],colorData);
+  gl.uniform1f(u.uAmbient,AMBIENT);
+  gl.uniform1f(u.uSweepHead,sweep?sweep.head*dpr:0);
+  gl.uniform1f(u.uSweepWidth,sweep?Math.max(1,sweep.width*dpr):1);
+  gl.uniform1f(u.uSweepGain,sweep?sweep.gain:0);
+  gl.uniformMatrix4fv(u.uView,false,view(eye,p.target));gl.uniformMatrix4fv(u.uProjection,false,proj);gl.uniform3fv(u.uEye,eye);gl.uniform3fv(u.uOrigin,[0,0,0]);gl.uniform2f(u.uResolution,canvas.width,canvas.height);gl.uniform2f(u.uViewport,canvas.width,canvas.height);gl.uniform1f(u.uPixelRatio,dpr);gl.uniform1f(u.uTime,time/1000);gl.drawArrays(gl.TRIANGLES,0,vertices.length/9);
+ }
+ canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();renderFailed=true;if(transition)finish();});
+ resize();return {resize,render};
+}
+
+// The fabric is always on screen, so navigation is one short camera flight
+// across it while the text panels slide past — no full-screen takeover.
+const DURATION=900, OUT_END=240, IN_START=330, IN_END=860, SHIFT=66;
+function blendPose(a,b,t){
+ return {target:vMix(a.target,b.target,t),distance:mix(a.dist,b.dist,t),theta:mix(a.theta,b.theta,t),phi:mix(a.phi,b.phi,t),fov:.69};
+}
+// Drift is added on top of whatever base pose is active, so resuming the idle
+// sway at the end of a flight produces no jump.
+function applyDrift(p,now){
+ if(motion.matches)return p;
+ const t=now/1000;
+ p.target=[p.target[0]+Math.sin(t*.13)*.30,p.target[1]+Math.sin(t*.09)*.10,p.target[2]+Math.cos(t*.11)*.26];
+ p.theta+=Math.sin(t*.062)*.09;p.phi+=Math.sin(t*.051)*.022;p.distance+=Math.sin(t*.073)*.12;
+ return p;
+}
+function cameraPose(now){
+ let p;
+ if(transition){
+  const u=smooth(clamp((now-transition.start)/DURATION)),arc=Math.sin(Math.PI*u);
+  p=blendPose(poses[transition.from],poses[transition.to],u);
+  p.distance+=arc*2.9;p.phi+=arc*.10;
+ }else p=blendPose(poses[current],poses[current],0);
+ return applyDrift(p,now);
+}
+// Lights the fabric sees: the warm pointer halo always wins a slot, the rest
+// go to whichever matrix cells happen to be lit right now.
+function sceneLights(){
+ lights.length=0;
+ const cells=activeCells.slice().sort((a,b)=>b.e-a.e);
+ for(const a of cells){
+  if(lights.length>=MAX_LIGHTS-(pointer?1:0))break;
+  lights.push({x:a.x+9,y:a.y+9,r:138,i:a.e*.95,c:COOL});
+ }
+ if(pointer)lights.unshift({x:pointer.x,y:pointer.y,r:310,i:1.15,c:WARM});
+ return lights;
+}
+// One wave clock drives both the 2D matrix pulse and the light band that
+// sweeps across the model, so they read as the same event.
+function sceneSweep(now){
+ let t=-1,forward=true,amp=.18;
+ if(transition){t=clamp((now-transition.start)/DURATION);forward=transition.forward;amp=.30;}
+ else if(!motion.matches){const c=(now-idleAnchor)/1000;if(c>=0){const q=(c%5.2)/2.25;if(q<=1)t=q;}}
+ if(t<0)return null;
+ const span=W+H,pad=460;
+ return {t,forward,amp,head:(forward?t:1-t)*(span+pad*2)-pad,width:340,gain:Math.min(1,t*10,(1-t)*10)*(transition?.85:.42)};
+}
+function labels(){
+ buttons.forEach((b,i)=>{b.style.top=(10+80*i/(buttons.length-1))+'%';b.style.opacity=i===current?'1':'.4';b.style.color=i===current?'var(--accent-warm)':'var(--text-dim)';if(i===current)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
+ $('#progressFill').style.transform='scaleX('+(current/(sections.length-1))+')';
+ sections.forEach((s,i)=>{s.inert=i!==current;s.setAttribute('aria-hidden',String(i!==current));});
+}
+function clearFeature(el){if(el){el.style.transform='';el.style.opacity='';el.style.willChange='';}}
+function slideFeature(el,px,opacity){
+ el.style.transform='translate3d(0,'+px.toFixed(1)+'px,0)';
+ el.style.opacity=String(opacity);
+}
+function snap(){window.scrollTo(0,sections[current].offsetTop);}
+function finish(){
+ if(!transition)return;
+ const tr=transition;transition=null;
+ clearFeature(tr.outEl);clearFeature(tr.inEl);
+ content.inert=false;snap();labels();
+ sections[current].focus({preventScroll:true});lastEnd=performance.now();idleAnchor=lastEnd+700;lastBg=0;
+ document.body.dataset.phase='content';document.body.dataset.heartbeat=motion.matches?'off':'waiting';
+ ensureFrame();
+}
+function go(index,historyMode=true){
+ index=clamp(index,0,sections.length-1);if(index===current||transition)return;
+ const from=current;current=index;
+ if(historyMode)history.replaceState(null,'','#'+sections[current].id);
+ labels();
+ if(motion.matches||!renderer||renderFailed){snap();sections[current].focus({preventScroll:true});idleAnchor=performance.now()+600;lastBg=0;ensureFrame();return;}
+ const forward=index>from;
+ const outEl=sections[from].querySelector('.section-inner'),inEl=sections[index].querySelector('.section-inner');
+ transition={from,to:index,start:performance.now(),forward,outEl,inEl,snapped:false};
+ outEl.style.willChange='transform,opacity';inEl.style.willChange='transform,opacity';
+ slideFeature(inEl,forward?SHIFT:-SHIFT,0);
+ content.inert=true;document.body.dataset.heartbeat='off';
+ ensureFrame();
+}
+// Straight vertical hand-off: the old panel travels out the way the scroll is
+// going, the new one arrives from the opposite edge. No scaling at any point.
+function stepTransition(now){
+ const tr=transition,t=clamp(now-tr.start,0,DURATION),dir=tr.forward?-1:1;
+ if(t<OUT_END){
+  const u=smooth(t/OUT_END);slideFeature(tr.outEl,dir*SHIFT*u,1-u);
+ }else{
+  if(!tr.snapped){tr.snapped=true;snap();slideFeature(tr.outEl,0,0);}
+  const u=smooth(clamp((t-IN_START)/(IN_END-IN_START)));
+  slideFeature(tr.inEl,-dir*SHIFT*(1-u),u);
+ }
+ document.body.dataset.phase=t<OUT_END?'exit':t<IN_START?'travel':'enter';
+ if(t>=DURATION)finish();
+}
+
+// Full-screen pulse and quiet idle heartbeat have completely separate clocks.
+// The diagonal is r+c=cycle; only active diagonal cells are painted.
+function drawPulse(ctx,t,amp,forward){
+ const cell=30,cols=Math.ceil(W/cell),rows=Math.ceil(H/cell),period=cols+rows+9;
+ const head=(forward?t:1-t)*period-4;
+ const width=Math.max(3.6,period*.05),echoGap=Math.max(7,period*.10),reach=Math.ceil(width+echoGap);
+ const envelope=Math.min(1,t*12,(1-t)*12)*amp;
+ for(let r=0;r<rows;r++){
+  const lo=Math.max(0,Math.floor(head-r-reach)),hi=Math.min(cols,Math.ceil(head-r+reach));
+  for(let col=lo;col<hi;col++){
+   const diag=r+col,dist=Math.abs(diag-head),echo=Math.abs(diag-(head+(forward?-echoGap:echoGap)));
+   const glow=Math.max(0,1-dist/width,(1-echo/(width*.65))*.32)*envelope;if(glow<.012)continue;
+   const size=amp>.5?22:17,x=col*cell+15,y=r*cell+15;
+   ctx.globalAlpha=glow*.085;ctx.fillStyle='#e8963d';ctx.fillRect(x-16,y-16,32,32);
+   ctx.globalAlpha=glow*.90;ctx.fillStyle=dist<1.3?'#f2c18b':'#d88e44';ctx.fillRect(x-size/2,y-size/2,size,size);
   }
-
-  // ---- scroll progress bar ----
-  function updateProgress(){
-    var scrollTop = window.scrollY;
-    var docHeight = document.documentElement.scrollHeight - window.innerHeight;
-    var pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
-    progressFill.style.width = pct + '%';
+ }
+ ctx.globalAlpha=1;
+}
+function makeGlowSprite(){
+ glowSprite=document.createElement('canvas');glowSprite.width=glowSprite.height=320;
+ const g=glowSprite.getContext('2d'),light=g.createRadialGradient(160,160,0,160,160,160);
+ light.addColorStop(0,'rgba(232,150,61,.22)');light.addColorStop(.3,'rgba(232,150,61,.13)');
+ light.addColorStop(.7,'rgba(95,160,201,.035)');light.addColorStop(1,'rgba(95,160,201,0)');
+ g.fillStyle=light;g.fillRect(0,0,320,320);
+}
+function buildMatrix(){
+ matrixBase=document.createElement('canvas');const dpr=Math.min(devicePixelRatio||1,1.5);
+ matrixBase.width=Math.round(W*dpr);matrixBase.height=Math.round(H*dpr);
+ const ctx=matrixBase.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
+ const cols=Math.ceil(W/30),rows=Math.ceil(H/30);
+ ctx.beginPath();for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)ctx.rect(c*30+5.5,r*30+5.5,19,19);
+ ctx.strokeStyle='rgba(140,153,166,.055)';ctx.lineWidth=.7;ctx.stroke();
+ // Seeded per-cell clocks: sparse, slow flickers, never a random value per frame.
+ const count=Math.min(cols*rows,64,Math.max(10,Math.floor(cols*rows*.035)));
+ let seed=18371;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+ matrixCells=[];const used=new Set();
+ for(let i=0;i<count;i++){
+  let index;do{index=Math.floor(random()*cols*rows);}while(used.has(index));used.add(index);
+  matrixCells.push({x:index%cols*30+6,y:Math.floor(index/cols)*30+6,period:3900+random()*4600,phase:random()*9000,duration:1000+random()*650,alpha:.10+random()*.12});
+ }
+}
+function drawOverlay(now,sweep){
+ bgc.clearRect(0,0,W,H);
+ bgc.drawImage(matrixBase,0,0,W,H);
+ activeCells.length=0;
+ if(!motion.matches){
+  const elapsed=Math.max(0,now-idleAnchor);bgc.fillStyle='#9caab4';
+  for(const cell of matrixCells){
+   const t=((elapsed+cell.phase)%cell.period)/cell.duration;if(t>=1)continue;
+   const e=Math.sin(Math.PI*t)**2;
+   bgc.globalAlpha=e*cell.alpha;bgc.fillRect(cell.x,cell.y,18,18);
+   if(e>.07)activeCells.push({x:cell.x,y:cell.y,e});
   }
-
-  function onScroll(){ updateProgress(); updateActiveSection(); }
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
-
-  // A resize changes the viewport (hence section) height, so the current
-  // section's top no longer sits at the scroll position it did before —
-  // snap back to it instantly rather than leaving the page mid-layer.
-  window.addEventListener('resize', function(){
-    updateActiveSection();
-    window.scrollTo(0, sections[currentSection].offsetTop);
-  });
-
-  // ---- paginated scroll input: hijack wheel/touch/keys so each gesture
-  // moves exactly one section instead of scrolling freely — except when
-  // the current section's own content overflows the viewport, in which
-  // case scrolling toward the far edge scrolls inside it first (native)
-  // and only advances to the next/prev section once that edge is reached. ----
-  function isInteractiveTarget(el){
-    return !!el && /^(A|BUTTON|INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
+  bgc.globalAlpha=1;
+ }
+ if(sweep){drawPulse(bgc,sweep.t,sweep.amp,sweep.forward);if(!transition)document.body.dataset.heartbeat='idle';}
+ if(pointer){
+  bgc.drawImage(glowSprite,pointer.x-160,pointer.y-160);
+  const col=Math.floor(pointer.x/30),row=Math.floor(pointer.y/30);
+  for(let r=Math.max(0,row-4);r<=row+4;r++)for(let c=Math.max(0,col-4);c<=col+4;c++){
+   const x=c*30+15,y=r*30+15,d=Math.hypot(x-pointer.x,y-pointer.y),light=Math.max(0,1-d/125);
+   if(!light)continue;
+   bgc.globalAlpha=light*light*.48;bgc.fillStyle='#e8a052';bgc.fillRect(x-9,y-9,18,18);
   }
-  function atSectionEdge(goingDown){
-    var el = sections[currentSection];
-    return goingDown
-      ? el.scrollHeight - el.scrollTop - el.clientHeight <= 1
-      : el.scrollTop <= 1;
-  }
-  window.addEventListener('wheel', function(e){
-    if (isSnapping){ e.preventDefault(); return; }
-    var goingDown = e.deltaY > 0;
-    if (!atSectionEdge(goingDown)) return; // let the section scroll internally
-    e.preventDefault();
-    if (Math.abs(e.deltaY) < 4) return;
-    goToSection(currentSection + (goingDown ? 1 : -1));
-  }, { passive: false });
+  bgc.globalAlpha=1;
+ }
+}
+function drawScene(now){
+ const sweep=sceneSweep(now);
+ drawOverlay(now,sweep);
+ if(renderer&&!renderFailed)renderer.render(cameraPose(now),now,sceneLights(),sweep);
+}
+function frame(now){
+ raf=0;if(document.hidden)return;
+ if(transition)stepTransition(now);
+ const budget=transition?0:(now-pointerStamp<120?12:W<=900?48:32);
+ if(motion.matches||now-lastBg>=budget){drawScene(now);lastBg=now;}
+ if(transition||!motion.matches)ensureFrame();
+}
+function ensureFrame(){if(!raf&&!document.hidden)raf=requestAnimationFrame(frame);}
+function resize(){
+ W=innerWidth;H=innerHeight;const dpr=Math.min(devicePixelRatio||1,1.5);
+ bg.width=Math.round(W*dpr);bg.height=Math.round(H*dpr);bgc.setTransform(dpr,0,0,dpr,0,0);
+ if(renderer)renderer.resize();buildMatrix();
+ if(transition&&!transition.snapped)window.scrollTo(0,sections[transition.from].offsetTop);else snap();
+ lastBg=0;ensureFrame();
+}
+function editable(el){return el&&!!el.closest('input,textarea,select,[contenteditable="true"],a,button');}
+function atEdge(down){const s=sections[current];return down?s.scrollHeight-s.scrollTop-s.clientHeight<2:s.scrollTop<2;}
+window.addEventListener('wheel',e=>{
+ if(e.ctrlKey)return; // Preserve browser pinch-to-zoom.
+ const now=performance.now(),gap=now-lastWheel;lastWheel=now;
+ if(transition){e.preventDefault();wheelSum=0;return;}
+ if(Math.abs(e.deltaY)<=Math.abs(e.deltaX))return;
+ const down=e.deltaY>0;if(!atEdge(down)){wheelSum=0;return;}e.preventDefault();
+ if(now-lastEnd<320||gap<140&&now-lastEnd<750)return;
+ let delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?H:1);
+ if(now-wheelTime>180||Math.sign(delta)!==Math.sign(wheelSum))wheelSum=0;wheelTime=now;wheelSum+=delta;
+ if(Math.abs(wheelSum)>=45){go(current+(down?1:-1));wheelSum=0;}
+},{passive:false});
+window.addEventListener('touchstart',e=>{
+ if(e.touches.length!==1){touch=null;return;}const t=e.touches[0];touch={x:t.clientX,y:t.clientY,scroll:sections[current].scrollTop,edgeUp:atEdge(false),edgeDown:atEdge(true),blocked:!!transition};
+},{passive:true});
+window.addEventListener('touchmove',e=>{
+ if(e.touches.length!==1){touch=null;return;}if(!touch)return;
+ const d=touch.y-e.touches[0].clientY;if(transition||(Math.abs(d)>8&&atEdge(d>0)))e.preventDefault();
+},{passive:false});
+window.addEventListener('touchend',e=>{
+ if(!touch)return;const t=touch;touch=null;if(transition||t.blocked)return;
+ const dy=t.y-e.changedTouches[0].clientY,dx=t.x-e.changedTouches[0].clientX;
+ if(Math.abs(dy)<55||Math.abs(dy)<Math.abs(dx)||Math.abs(sections[current].scrollTop-t.scroll)>3)return;
+ if(dy>0?t.edgeDown:t.edgeUp)go(current+(dy>0?1:-1));
+},{passive:true});
+window.addEventListener('touchcancel',()=>touch=null,{passive:true});
+window.addEventListener('keydown',e=>{
+ if(e.key==='Escape'&&transition){e.preventDefault();finish();return;}
+ if(editable(e.target))return;
+ const down=['ArrowDown','PageDown',' '].includes(e.key)&&!e.shiftKey,up=['ArrowUp','PageUp'].includes(e.key)||(e.key===' '&&e.shiftKey);
+ if(!down&&!up&&!['Home','End'].includes(e.key))return;e.preventDefault();if(transition||e.repeat)return;
+ if(e.key==='Home'){go(0);return;}if(e.key==='End'){go(sections.length-1);return;}
+ if(!atEdge(down)){sections[current].scrollBy({top:(down?1:-1)*(e.key.startsWith('Arrow')?70:H*.7),behavior:motion.matches?'instant':'smooth'});return;}
+ go(current+(down?1:-1));
+});
+buttons.forEach((b,i)=>b.addEventListener('click',()=>go(i)));
+window.addEventListener('hashchange',()=>{const i=sections.findIndex(s=>s.id===location.hash.slice(1));if(i>=0){if(transition)finish();go(i,false);}});
+window.addEventListener('resize',resize,{passive:true});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){if(raf)cancelAnimationFrame(raf);raf=0;if(transition)finish();}else{idleAnchor=performance.now()+600;lastBg=0;ensureFrame();}});
+motion.addEventListener('change',()=>{if(transition)finish();if(motion.matches){bgc.clearRect(0,0,W,H);document.body.dataset.heartbeat='off';}else idleAnchor=performance.now()+600;ensureFrame();});
+window.addEventListener('pointermove',e=>{if(e.pointerType==='mouse'){pointer={x:e.clientX,y:e.clientY};pointerStamp=performance.now();ensureFrame();}},{passive:true});
+document.addEventListener('pointerleave',()=>{pointer=null;lastBg=0;ensureFrame();});
 
-  var touchStartY = null, touchLastY = null;
-  window.addEventListener('touchstart', function(e){
-    touchStartY = touchLastY = e.touches[0].clientY;
-  }, { passive: true });
-  window.addEventListener('touchmove', function(e){
-    if (isSnapping){ e.preventDefault(); return; }
-    var y = e.touches[0].clientY;
-    var goingDown = touchLastY - y > 0;
-    touchLastY = y;
-    if (!atSectionEdge(goingDown)) return; // let the section scroll internally
-    e.preventDefault();
-  }, { passive: false });
-  window.addEventListener('touchend', function(e){
-    if (touchStartY === null) return;
-    var dy = touchStartY - e.changedTouches[0].clientY;
-    touchStartY = touchLastY = null;
-    if (isSnapping || Math.abs(dy) < 30) return;
-    var goingDown = dy > 0;
-    if (!atSectionEdge(goingDown)) return; // gesture was spent on internal scroll
-    goToSection(currentSection + (goingDown ? 1 : -1));
-  }, { passive: true });
-
-  window.addEventListener('keydown', function(e){
-    if (isSnapping || isInteractiveTarget(document.activeElement)) return;
-    if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' '){
-      e.preventDefault(); goToSection(currentSection + 1);
-    } else if (e.key === 'ArrowUp' || e.key === 'PageUp'){
-      e.preventDefault(); goToSection(currentSection - 1);
-    } else if (e.key === 'Home'){
-      e.preventDefault(); goToSection(0);
-    } else if (e.key === 'End'){
-      e.preventDefault(); goToSection(sections.length - 1);
-    }
-  });
-
-  // ---- click-to-copy contact icons ----
-  function copyText(text){
-    if (navigator.clipboard && window.isSecureContext){
-      return navigator.clipboard.writeText(text);
-    }
-    var ta = document.createElement('textarea');
-    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
-    document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); } catch (e) {}
-    document.body.removeChild(ta);
-    return Promise.resolve();
-  }
-  document.querySelectorAll('.contact-icon').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      var value = btn.getAttribute('data-copy');
-      copyText(value).then(function(){
-        var tip = btn.querySelector('.copied-tip');
-        tip.classList.add('show');
-        setTimeout(function(){ tip.classList.remove('show'); }, 1200);
-      });
-    });
-  });
-
-  // ---- typewriter hero slogan ----
-  (function(){
-    var el = document.getElementById('typedSlogan');
-    if (!el) return;
-    var text = 'Optimization is the key.';
-    if (reduceMotion){ el.textContent = text; return; }
-    var i = 0;
-    (function tick(){
-      el.textContent = text.slice(0, i);
-      i++;
-      if (i <= text.length){ setTimeout(tick, 55); }
-    })();
-  })();
-
-  // ---- background systolic array: the PE grid inside a tensor core / TPU
-  // that performs matrix multiplication, standing in for the generic
-  // "neural network diagram" every AI-adjacent site uses — diagonal
-  // wavefronts sweep the grid the way partial sums actually propagate
-  // through a real systolic array. Also doubles as the section nav. ----
-  var canvas = document.getElementById('netBg');
-  var ctx = canvas.getContext('2d');
-  var dpr = Math.min(window.devicePixelRatio || 1, 2);
-  var accentCool = [95, 160, 201];
-  var accentWarm = [232, 150, 61];
-  var CELL = 30; // matches the body's own dot-grid background-size, so the two textures share a pitch
-  var W, H, cols, rows, bandY;
-
-  // The cursor acts as a probe: nearby cells light up the same way
-  // scroll-driven ones do. null when the pointer hasn't moved yet or has
-  // left the window (touch devices simply never set this).
-  var mouseX = null, mouseY = null;
-  var CURSOR_REACH = 90;
-  window.addEventListener('mousemove', function(e){
-    mouseX = e.clientX; mouseY = e.clientY;
-    if (reduceMotion){ draw(); }
-  });
-  window.addEventListener('mouseleave', function(){
-    mouseX = null; mouseY = null;
-    if (reduceMotion){ draw(); }
-  });
-
-  function lerp(a, b, t){ return a + (b - a) * t; }
-  // Triangular falloff: 1 right at this band, fading to 0 one full band
-  // away in either direction — the two bands on either side of `progress`
-  // crossfade smoothly instead of switching hard.
-  function layerWeight(li, p){ return Math.max(0, 1 - Math.abs(li - (p === undefined ? progress : p))); }
-  // Continuous vertical hotness field: blends the two bands bracketing a
-  // given y so brightness moves smoothly across the grid rather than
-  // snapping between six fixed rows.
-  function hotnessAtY(y){
-    if (y <= bandY[0]) return layerWeight(0);
-    if (y >= bandY[layerCount - 1]) return layerWeight(layerCount - 1);
-    for (var i = 0; i < layerCount - 1; i++){
-      if (y >= bandY[i] && y <= bandY[i + 1]){
-        var t = (y - bandY[i]) / (bandY[i + 1] - bandY[i] || 1);
-        return lerp(layerWeight(i), layerWeight(i + 1), t);
-      }
-    }
-    return 0;
-  }
-
-  function buildGrid(){
-    W = window.innerWidth; H = window.innerHeight;
-    canvas.width = W * dpr; canvas.height = H * dpr;
-    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    cols = Math.ceil(W / CELL) + 1;
-    rows = Math.ceil(H / CELL) + 1;
-
-    var padY = H * 0.1, usableH = H - padY * 2;
-    bandY = [];
-    for (var i = 0; i < layerCount; i++){
-      bandY.push(layerCount === 1 ? H / 2 : padY + usableH * i / (layerCount - 1));
-    }
-  }
-
-  // Soft radial light pool trailing the cursor — the same trick the old
-  // network used to make the canvas read as "illuminated" rather than
-  // just having brighter cells.
-  function glowAt(x, y, radius, alpha){
-    if (radius <= 0 || alpha <= 0) return;
-    var g = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    g.addColorStop(0, 'rgba(' + accentWarm.join(',') + ',' + alpha.toFixed(3) + ')');
-    g.addColorStop(1, 'rgba(' + accentWarm.join(',') + ',0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Weight-stationary systolic array, the textbook TPU-MXU dataflow:
-  // weights sit fixed in each PE; activations are fed in from the left
-  // with a one-cycle skew per row (row r's activation enters r cycles
-  // after row 0's) while partial sums are fed from the top with the same
-  // skew per column — that skew is *why* the set of PEs actually
-  // computing at any instant forms a diagonal (row+col === cycle), not a
-  // horizontal band. It's the real wavefront, not a stylistic choice.
-  var WAVE_WIDTH = 2.6, PASS_GAP = 0.16, IDLE_PULSE_CYCLE = 3.5;
-
-  function draw(){
-    ctx.clearRect(0, 0, W, H);
-    var now = performance.now() / 1000;
-    var blink = reduceMotion ? 1 : (0.7 + 0.3 * Math.sin(now * 2.2));
-    var period = cols + rows;
-
-    // the wiring: a constant, near-invisible circuit-board texture drawn
-    // once as two batched paths — everything else lights up on top of it.
-    ctx.beginPath();
-    for (var c = 0; c <= cols; c++){ ctx.moveTo(c * CELL, 0); ctx.lineTo(c * CELL, H); }
-    for (var r = 0; r <= rows; r++){ ctx.moveTo(0, r * CELL); ctx.lineTo(W, r * CELL); }
-    ctx.strokeStyle = 'rgba(' + accentCool.join(',') + ',0.05)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    ctx.globalCompositeOperation = 'lighter';
-    if (mouseX !== null){ glowAt(mouseX, mouseY, 90, 0.16 * (0.8 + 0.2 * blink)); }
-
-    // ---- page-flip = one tile pass through the array: the diagonal
-    // wavefront above, sweeping from the top-left corner (where row 0's
-    // activation and column 0's partial sum both enter) to the
-    // bottom-right (where the last result leaves) on a forward pass, or
-    // the reverse on a backward one — the same forward/backward
-    // distinction as a training loop. Driven directly off `transitionT`,
-    // the same eased 0..1 value the snap animation itself produces, so
-    // the pass IS the page turning. Between page-flips the array isn't
-    // fully clock-gated either — a much dimmer "heartbeat" preview of the
-    // same sweep loops on its own on a slow cycle, so the array still
-    // visibly does something (and still hints which way scrolling goes)
-    // while at rest. ----
-    var passOn = !reduceMotion && isSnapping;
-    var idleT = 0, idleAmp = 0;
-    if (!passOn && !reduceMotion){
-      var half = IDLE_PULSE_CYCLE * 0.5;
-      var cyc = (now - idlePulseAnchor) % IDLE_PULSE_CYCLE;
-      if (cyc < half){
-        idleT = cyc / half;
-        idleAmp = 4 * idleT * (1 - idleT) * 0.7; // fades in/out, still below a real pass but clearly visible
-      }
-    }
-    var sweepOn = passOn || idleAmp > 0.01;
-    var sweepT = passOn ? transitionT : idleT;
-    var sweepAmp = passOn ? 1 : idleAmp;
-    var wavePos = navForward ? sweepT * period : (1 - sweepT) * period;
-    var gapPx = period * PASS_GAP;
-
-    for (r = 0; r < rows; r++){
-      var cy = r * CELL + CELL / 2;
-      var hot = hotnessAtY(cy);
-      for (c = 0; c < cols; c++){
-        var cx = c * CELL + CELL / 2;
-        var diag = r + c;
-
-        var waveGlow = 0;
-        if (sweepOn){
-          var d0 = Math.abs(diag - wavePos);
-          waveGlow = Math.max(0, 1 - d0 / WAVE_WIDTH) * sweepAmp;
-          if (passOn){
-            var echoPos = navForward ? wavePos - gapPx : wavePos + gapPx;
-            var d1 = Math.abs(diag - echoPos);
-            waveGlow = Math.max(waveGlow, Math.max(0, 1 - d1 / WAVE_WIDTH) * 0.5 * sweepAmp);
-          }
-        }
-
-        var cursorGlow = 0;
-        if (mouseX !== null){
-          var d = Math.hypot(cx - mouseX, cy - mouseY);
-          cursorGlow = Math.max(0, 1 - d / CURSOR_REACH);
-        }
-
-        // a sparse, stable-per-cell subset (~6%) gets a slow idle shimmer
-        // — background telemetry rather than real compute, so the array
-        // reads as quietly powered everywhere even between passes.
-        var idleGlow = 0;
-        if ((r * 31 + c * 17) % 53 < 3){
-          var idle = reduceMotion ? 0.5 : (0.5 + 0.5 * Math.sin(now * 0.8 + r * 1.3 + c * 0.7));
-          idleGlow = idle;
-        }
-
-        var alpha = 0.07 * hot * (0.85 + 0.15 * blink) + waveGlow * (0.35 + 0.5 * hot) + cursorGlow * 0.4 + idleGlow * 0.11;
-        if (alpha <= 0.02) continue;
-
-        var heat = Math.min(1, hot * 0.7 + waveGlow + cursorGlow);
-        var cr = Math.round(lerp(accentCool[0], accentWarm[0], heat));
-        var cg = Math.round(lerp(accentCool[1], accentWarm[1], heat));
-        var cb = Math.round(lerp(accentCool[2], accentWarm[2], heat));
-        // No per-cell shadowBlur — canvas shadows are re-rasterized on
-        // every draw call, and toggling one on for every bright cell (of
-        // which there can be hundreds mid-sweep) was the actual source of
-        // the stutter. 'lighter' compositing already makes neighboring
-        // bright cells bloom into each other, which reads as glow without
-        // paying for real blur.
-        var size = CELL - 9;
-        var a = Math.min(0.85, alpha);
-        ctx.fillStyle = 'rgba(' + cr + ',' + cg + ',' + cb + ',' + a.toFixed(3) + ')';
-        ctx.fillRect(cx - size / 2, cy - size / 2, size, size);
-      }
-    }
-    ctx.globalCompositeOperation = 'source-over';
-  }
-
-  function loop(){
-    // Recompute from the live scroll position every frame rather than only
-    // reacting to 'scroll' events — browsers can coalesce/throttle those
-    // (especially during a smooth-scroll's deceleration), which made the
-    // array's glow visibly hitch and pop once the event finally caught up
-    // right as a section settled. Sampling scrollY here keeps it locked to
-    // the actual frame rate regardless of event timing.
-    updateActiveSection();
-    draw();
-    if (!reduceMotion){ requestAnimationFrame(loop); }
-  }
-
-  updateSystemModel(0);
-  buildGrid();
-  loop();
-
-  var resizeTimer;
-  window.addEventListener('resize', function(){
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(function(){ buildGrid(); if (reduceMotion){ draw(); } }, 200);
-  });
-
-  // ---- clicking empty background space jumps to the nearest band's section ----
-  document.addEventListener('click', function(e){
-    if (!e.target.classList || !e.target.classList.contains('section')) return;
-    var bestLi = 0, bestDist = Infinity;
-    for (var li = 0; li < bandY.length; li++){
-      var d = Math.abs(e.clientY - bandY[li]);
-      if (d < bestDist){ bestDist = d; bestLi = li; }
-    }
-    goToSection(bestLi);
-  });
+// Existing homepage interactions.
+function copyText(text){
+ if(navigator.clipboard&&isSecureContext)return navigator.clipboard.writeText(text);
+ const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();const copied=document.execCommand('copy');ta.remove();return copied?Promise.resolve():Promise.reject(Error('copy'));
+}
+document.querySelectorAll('.contact-icon[data-copy]').forEach(b=>b.addEventListener('click',()=>{
+ copyText(b.dataset.copy).then(()=>{const tip=b.querySelector('.copied-tip');tip.textContent='Copied!';tip.classList.add('show');setTimeout(()=>tip.classList.remove('show'),1200);}).catch(()=>{const tip=b.querySelector('.copied-tip');tip.textContent=b.dataset.copy;tip.classList.add('show');});
+}));
+const slogan=$('#typedSlogan'),sloganText='Optimization is the key.';let typed=0;
+function typeNext(){if(motion.matches){slogan.textContent=sloganText;return;}slogan.textContent=sloganText.slice(0,typed++);if(typed<=sloganText.length)setTimeout(typeNext,55);}
+typeNext();
+sections.forEach(s=>s.tabIndex=-1);
+try{renderer=createPackage($('#packageCanvas'));}catch(e){renderFailed=true;console.warn('Compute renderer unavailable; using direct section navigation.',e);}
+// Warm the shader before the first frame so the fabric is there on load.
+if(renderer&&!renderFailed)renderer.render(cameraPose(performance.now()),0,[],null);
+document.documentElement.classList.add('enhanced');if('scrollRestoration'in history)history.scrollRestoration='manual';
+makeGlowSprite();labels();resize();document.body.dataset.phase='content';document.body.dataset.heartbeat=motion.matches?'off':'waiting';
 })();
-</script>
 
+</script>
 </body>
 </html>
