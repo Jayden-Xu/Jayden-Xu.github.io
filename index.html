@@ -23,8 +23,10 @@
     --font-script:'Caveat', cursive;
   }
   *{ box-sizing:border-box; }
-  html{ scroll-behavior:smooth; font-size:18px; }
-  @media (prefers-reduced-motion: reduce){ html{ scroll-behavior:auto; } }
+  /* scroll transitions are hand-animated in JS (see goToSection); the
+     browser's own smooth-scroll would otherwise re-animate every frame of
+     that animation on top of it and fight for the final position. */
+  html{ scroll-behavior:auto; font-size:18px; }
   body{
     margin:0;
     background-color:var(--bg);
@@ -39,26 +41,32 @@
   a:hover{ text-decoration:underline; }
   a:focus-visible, button:focus-visible{ outline:2px solid var(--accent-warm); outline-offset:3px; }
 
-  .progress{ position:fixed; top:0; left:0; width:100%; height:2px; background:var(--rule); z-index:30; }
+  .progress{ position:fixed; top:0; left:0; width:100%; height:2px; background:var(--rule); z-index:30; pointer-events:none; }
   .progress-fill{ height:100%; background:var(--accent-warm); width:0%; }
 
   #netBg{ position:fixed; inset:0; width:100%; height:100%; z-index:-1; pointer-events:none; }
 
   .sectionLabels{
-    position:fixed; right:28px; top:10%; height:80%; z-index:20;
-    display:flex; flex-direction:column; justify-content:space-between; align-items:flex-end;
+    position:fixed; right:28px; top:0; height:100vh; height:100dvh; z-index:20;
   }
   .sectionLabels button{
+    position:absolute; right:0; transform:translateY(-50%);
     background:none; border:none; padding:2px 0; margin:0; cursor:pointer;
     font-family:var(--font-mono); font-size:0.78rem; letter-spacing:0.05em; text-transform:uppercase;
     color:var(--text-dim); opacity:0.4; transition:opacity .3s ease, color .3s ease;
   }
   @media (max-width:900px){ .sectionLabels{ display:none; } }
 
-  .section{ display:flex; align-items:center; justify-content:center; padding:120px 24px; }
+  /* Each section is exactly one viewport tall so scroll position maps
+     directly to "which layer" with no rounding — content taller than the
+     viewport scrolls inside the section instead of stretching it. */
+  .section{
+    display:flex; align-items:center; justify-content:center; padding:120px 24px;
+    height:100vh; height:100dvh; box-sizing:border-box; overflow-y:auto;
+  }
   .section + .section{ border-top:1px solid var(--rule); }
-  #intro.section{ min-height:92vh; padding-top:96px; padding-bottom:96px; }
-  .section-inner{ max-width:560px; width:100%; }
+  #intro.section{ padding-top:96px; padding-bottom:96px; }
+  .section-inner{ max-width:560px; width:100%; margin:auto 0; }
 
   .idx{ font-family:var(--font-mono); color:var(--accent-warm); font-size:0.85rem; display:block; margin-bottom:14px; }
 
@@ -89,7 +97,7 @@
 
   /* EXPERIENCE */
   .timeline{ position:relative; padding-left:24px; border-left:1px solid var(--rule); }
-  .role{ margin-bottom:40px; position:relative; }
+  .role{ margin-bottom:40px; position:relative; isolation:isolate; }
   .role:last-child{ margin-bottom:0; }
   .role::before{ content:''; position:absolute; left:-29px; top:7px; width:9px; height:9px; border-radius:50%; background:var(--accent-warm); }
   .role-title{ font-weight:500; font-size:1.1rem; }
@@ -105,6 +113,17 @@
     opacity:0.55; transition:opacity .25s ease, color .25s ease, border-color .25s ease;
   }
   .role:hover .tech-tag, .project:hover .tech-tag{ opacity:1; color:var(--accent-warm); border-color:var(--accent-warm); }
+
+  /* Location skyline: a permanent low-opacity watermark sitting behind a
+     role/education row's own text (z-index:-1, with isolation:isolate on
+     the row so that stays scoped to just this row rather than reaching
+     into the page's other stacking) — part of the row's typography rather
+     than something that only appears on interaction. */
+  .locale-skyline{
+    position:absolute; left:0; right:0; bottom:0; height:66px; z-index:-1;
+    opacity:0.4; color:var(--accent-cool); pointer-events:none;
+  }
+  .locale-skyline svg{ width:100%; height:100%; display:block; }
 
   /* PROJECTS */
   .project{ padding:30px 0; border-bottom:1px solid var(--rule); }
@@ -123,7 +142,7 @@
   .project-link svg{ width:14px; height:14px; }
 
   /* EDUCATION */
-  .edu-item{ padding:24px 0; border-bottom:1px solid var(--rule); }
+  .edu-item{ padding:24px 0; border-bottom:1px solid var(--rule); position:relative; isolation:isolate; }
   .edu-item:last-child{ border-bottom:none; }
   .edu-head{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
   .edu-school{ font-family:var(--font-script); font-weight:600; font-size:1.5rem; }
@@ -151,6 +170,66 @@
 </style>
 </head>
 <body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="skyline-sh" viewBox="0 0 560 90" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke">
+      <!-- Shanghai: Pudong waterfront — Oriental Pearl Tower, Jin Mao Tower, Shanghai Tower -->
+      <line x1="0" y1="80" x2="560" y2="80"/>
+      <rect x="24" y="56" width="18" height="24"/>
+      <rect x="50" y="46" width="14" height="34"/>
+      <rect x="78" y="60" width="20" height="20"/>
+      <line x1="165" y1="80" x2="165" y2="20"/>
+      <circle cx="165" cy="38" r="7.5"/>
+      <circle cx="165" cy="22" r="5"/>
+      <line x1="157" y1="80" x2="153" y2="66"/>
+      <line x1="173" y1="80" x2="177" y2="66"/>
+      <path d="M235,80 L241,26 L251,26 L257,80"/>
+      <line x1="238" y1="42" x2="254" y2="42"/>
+      <line x1="239" y1="58" x2="253" y2="58"/>
+      <path d="M310,80 C306,60 320,52 314,32 C312,22 324,14 320,4"/>
+      <rect x="380" y="58" width="16" height="22"/>
+      <rect x="410" y="50" width="20" height="30"/>
+      <rect x="450" y="62" width="14" height="18"/>
+      <rect x="488" y="46" width="18" height="34"/>
+      <rect x="524" y="60" width="16" height="20"/>
+    </symbol>
+    <symbol id="skyline-ca" viewBox="0 0 560 90" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke">
+      <!-- California: Golden Gate Bridge over the bay, flanked by hills -->
+      <line x1="0" y1="70" x2="560" y2="70"/>
+      <path d="M0,70 C24,44 46,44 70,70"/>
+      <path d="M490,70 C512,42 536,42 560,70"/>
+      <line x1="205" y1="16" x2="205" y2="70"/>
+      <line x1="355" y1="16" x2="355" y2="70"/>
+      <line x1="197" y1="16" x2="213" y2="16"/>
+      <line x1="347" y1="16" x2="363" y2="16"/>
+      <path d="M120,62 Q162,24 205,24 Q248,24 280,54 Q312,24 355,24 Q398,24 440,62"/>
+      <line x1="150" y1="38" x2="150" y2="68"/>
+      <line x1="235" y1="44" x2="235" y2="68"/>
+      <line x1="325" y1="44" x2="325" y2="68"/>
+      <line x1="410" y1="38" x2="410" y2="68"/>
+    </symbol>
+    <symbol id="skyline-mi" viewBox="0 0 560 90" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke">
+      <!-- Michigan: Ann Arbor campus — Burton Memorial Tower flanked by collegiate halls -->
+      <line x1="0" y1="80" x2="560" y2="80"/>
+      <path d="M70,80 L70,50 L130,50 L130,80"/>
+      <line x1="84" y1="50" x2="84" y2="40"/>
+      <line x1="116" y1="50" x2="116" y2="40"/>
+      <line x1="84" y1="40" x2="116" y2="40"/>
+      <line x1="180" y1="80" x2="180" y2="58"/>
+      <circle cx="180" cy="47" r="13"/>
+      <line x1="255" y1="80" x2="255" y2="30"/>
+      <line x1="305" y1="80" x2="305" y2="30"/>
+      <line x1="255" y1="30" x2="305" y2="30"/>
+      <circle cx="280" cy="42" r="5"/>
+      <path d="M255,30 L263,12 L297,12 L305,30"/>
+      <line x1="280" y1="12" x2="280" y2="2"/>
+      <line x1="390" y1="80" x2="390" y2="58"/>
+      <circle cx="390" cy="47" r="13"/>
+      <path d="M440,80 L440,54 L500,54 L500,80"/>
+    </symbol>
+  </defs>
+</svg>
 
 <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
 <canvas id="netBg" aria-hidden="true"></canvas>
@@ -193,12 +272,14 @@
           <span class="role-title">Incoming AI Infra Engineer</span> · <span class="role-org">TikTok</span>
           <div class="role-meta">Sep 2026 – Present · California, United States</div>
           <div class="role-note">Where I will continue to work on production-scale Training / Inference Infra.</div>
+          <span class="locale-skyline" aria-hidden="true"><svg viewBox="0 0 560 90"><use href="#skyline-ca"/></svg></span>
         </div>
         <div class="role">
           <span class="role-title">AI Infra Engineer</span> · <span class="role-org">TikTok</span>
           <div class="role-meta">May 2026 – Aug 2026 · Shanghai, China</div>
           <div class="role-note">Where I worked on production-scale Inference Infra, mainly "Frameworks", for the first time.</div>
           <div class="tech-tags"><span class="tech-tag">Inference Infra</span></div>
+          <span class="locale-skyline" aria-hidden="true"><svg viewBox="0 0 560 90"><use href="#skyline-sh"/></svg></span>
         </div>
       </div>
     </div>
@@ -235,6 +316,7 @@
         </div>
         <div class="edu-degree">Master of Science</div>
         <div class="edu-note">Where I decided to go all-in on AI infra.</div>
+        <span class="locale-skyline" aria-hidden="true"><svg viewBox="0 0 560 90"><use href="#skyline-mi"/></svg></span>
       </div>
       <div class="edu-item">
         <div class="edu-head">
@@ -243,6 +325,7 @@
         </div>
         <div class="edu-degree">Visiting Student</div>
         <div class="edu-note">Where I started thinking about which subfield to pursue.</div>
+        <span class="locale-skyline" aria-hidden="true"><svg viewBox="0 0 560 90"><use href="#skyline-ca"/></svg></span>
       </div>
       <div class="edu-item">
         <div class="edu-head">
@@ -251,6 +334,7 @@
         </div>
         <div class="edu-degree">Bachelor of Science</div>
         <div class="edu-note">Marks the beginning of my engineering career.</div>
+        <span class="locale-skyline" aria-hidden="true"><svg viewBox="0 0 560 90"><use href="#skyline-sh"/></svg></span>
       </div>
     </div>
   </section>
@@ -289,54 +373,79 @@
   // the network's highlight and flow move exactly as far as the page does,
   // instead of snapping between whole layers.
   var progress = 0;
+  // Eased 0..1 visibility of the idle "scroll hint" twinkle (see draw()) —
+  // ramps out only while a snap transition is actually in flight.
+  var hintOpacity = 0;
 
-  // ---- scroll-spy: for each pair of adjacent sections, track how far the
-  // next section's top has travelled — from the bottom of the viewport up
-  // through a window sized off that section's OWN height (clamped to a
-  // sane range) — and turn that into a 0..1 fraction. Taking the running
-  // max across all pairs gives one continuous progress value the network
-  // can render directly.
-  //
-  // The window used to be sized off viewport height (vh - a fixed line),
-  // which scales without bound: on a very tall viewport that distance grew
-  // past the section's actual content height, so progress would sit stuck
-  // on the previous layer for a stretch of scrolling and then snap forward
-  // once the oversized window finally finished — visible as the light
-  // jumping instead of flowing smoothly. Sizing the window off the
-  // section's real height fixes that at any viewport size. ----
-  function updateActiveSection(){
-    var vh = window.innerHeight;
-    // Walk the pairs in order and stop at the first one that hasn't fully
-    // completed yet — that's the transition currently in progress. (Taking
-    // a plain max over every pair's fraction is wrong: a boundary that
-    // hasn't started moving yet clamps to 0, but its layer index would
-    // still leak into the max and overstate progress.)
-    var p = sections.length - 1;
-    for (var i = 0; i < sections.length - 1; i++){
-      var next = sections[i + 1];
-      var boundary = next.getBoundingClientRect().top;
-      var windowSize = Math.max(150, Math.min(next.getBoundingClientRect().height, 500));
-      var t = Math.max(0, Math.min(1, (vh - boundary) / windowSize));
-      if (t < 1){ p = i + t; break; }
+  // ---- paginated navigation: one wheel tick / swipe / arrow key always
+  // advances exactly one section, animated ourselves (rather than the
+  // browser's native smooth scroll) so we control both the speed and the
+  // exact landing point. Driving `progress` directly from the animation's
+  // own time fraction — instead of re-deriving it from scroll geometry —
+  // means it always lands exactly on the target layer, never stuck
+  // between two. ----
+  var currentSection = 0;
+  var isSnapping = false;
+  function easeInOutCubic(t){ return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  function goToSection(index){
+    index = Math.max(0, Math.min(sections.length - 1, index));
+    var fromIndex = currentSection;
+    var fromY = window.scrollY;
+    var toY = sections[index].getBoundingClientRect().top + window.scrollY;
+    currentSection = index;
+    if (reduceMotion || fromY === toY){
+      window.scrollTo(0, toY);
+      progress = index;
+      updateSectionLabels();
+      return;
     }
-    // Clamp the extremes directly off scroll position: a short first/last
-    // section can otherwise never reach an exact 0 or layerCount-1.
-    var maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-    if (window.scrollY <= 0){ p = 0; }
-    else if (window.scrollY >= maxScroll - 2){ p = sections.length - 1; }
-    progress = Math.max(0, Math.min(sections.length - 1, p));
+    isSnapping = true;
+    var duration = 1100;
+    var startTime = null;
+    function step(ts){
+      if (startTime === null) startTime = ts;
+      var t = Math.min(1, (ts - startTime) / duration);
+      var eased = easeInOutCubic(t);
+      window.scrollTo(0, fromY + (toY - fromY) * eased);
+      progress = fromIndex + (index - fromIndex) * eased;
+      updateSectionLabels();
+      if (t < 1){
+        requestAnimationFrame(step);
+      } else {
+        progress = index;
+        isSnapping = false;
+        updateSectionLabels();
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  // With navigation fully paginated, the window only ever rests exactly on
+  // a section boundary — no need to re-derive progress from scroll
+  // geometry between layers; goToSection's own animation already drives it
+  // precisely while a transition is in flight.
+  function updateActiveSection(){
+    if (!isSnapping){ progress = currentSection; }
     updateSectionLabels();
     if (reduceMotion && layers){ draw(); }
   }
 
   // ---- section label sidebar: names the layers the network diagram only
-  // shows as dots, and crossfades brightness the same way the network does ----
+  // shows as dots, and crossfades brightness the same way the network does.
+  // Positioned with the exact same 10%-90% spread used for the canvas'
+  // layerY (see nodeCountForLayer/buildNetwork) so each label lines up with
+  // its layer instead of only approximating it via flex distribution. ----
   var labelButtons = document.querySelectorAll('.sectionLabels button');
-  labelButtons.forEach(function(btn){
-    btn.addEventListener('click', function(){
-      var target = document.getElementById(btn.getAttribute('data-target'));
-      if (target){ target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' }); }
+  function positionSectionLabels(){
+    labelButtons.forEach(function(btn, i){
+      var pct = labelButtons.length === 1 ? 50 : 10 + 80 * i / (labelButtons.length - 1);
+      btn.style.top = pct + '%';
     });
+  }
+  positionSectionLabels();
+  window.addEventListener('resize', positionSectionLabels);
+  labelButtons.forEach(function(btn, i){
+    btn.addEventListener('click', function(){ goToSection(i); });
   });
   function updateSectionLabels(){
     labelButtons.forEach(function(btn, i){
@@ -356,8 +465,73 @@
 
   function onScroll(){ updateProgress(); updateActiveSection(); }
   window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', updateActiveSection);
   onScroll();
+
+  // A resize changes the viewport (hence section) height, so the current
+  // section's top no longer sits at the scroll position it did before —
+  // snap back to it instantly rather than leaving the page mid-layer.
+  window.addEventListener('resize', function(){
+    updateActiveSection();
+    window.scrollTo(0, sections[currentSection].offsetTop);
+  });
+
+  // ---- paginated scroll input: hijack wheel/touch/keys so each gesture
+  // moves exactly one section instead of scrolling freely — except when
+  // the current section's own content overflows the viewport, in which
+  // case scrolling toward the far edge scrolls inside it first (native)
+  // and only advances to the next/prev section once that edge is reached. ----
+  function isInteractiveTarget(el){
+    return !!el && /^(A|BUTTON|INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
+  }
+  function atSectionEdge(goingDown){
+    var el = sections[currentSection];
+    return goingDown
+      ? el.scrollHeight - el.scrollTop - el.clientHeight <= 1
+      : el.scrollTop <= 1;
+  }
+  window.addEventListener('wheel', function(e){
+    if (isSnapping){ e.preventDefault(); return; }
+    var goingDown = e.deltaY > 0;
+    if (!atSectionEdge(goingDown)) return; // let the section scroll internally
+    e.preventDefault();
+    if (Math.abs(e.deltaY) < 4) return;
+    goToSection(currentSection + (goingDown ? 1 : -1));
+  }, { passive: false });
+
+  var touchStartY = null, touchLastY = null;
+  window.addEventListener('touchstart', function(e){
+    touchStartY = touchLastY = e.touches[0].clientY;
+  }, { passive: true });
+  window.addEventListener('touchmove', function(e){
+    if (isSnapping){ e.preventDefault(); return; }
+    var y = e.touches[0].clientY;
+    var goingDown = touchLastY - y > 0;
+    touchLastY = y;
+    if (!atSectionEdge(goingDown)) return; // let the section scroll internally
+    e.preventDefault();
+  }, { passive: false });
+  window.addEventListener('touchend', function(e){
+    if (touchStartY === null) return;
+    var dy = touchStartY - e.changedTouches[0].clientY;
+    touchStartY = touchLastY = null;
+    if (isSnapping || Math.abs(dy) < 30) return;
+    var goingDown = dy > 0;
+    if (!atSectionEdge(goingDown)) return; // gesture was spent on internal scroll
+    goToSection(currentSection + (goingDown ? 1 : -1));
+  }, { passive: true });
+
+  window.addEventListener('keydown', function(e){
+    if (isSnapping || isInteractiveTarget(document.activeElement)) return;
+    if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' '){
+      e.preventDefault(); goToSection(currentSection + 1);
+    } else if (e.key === 'ArrowUp' || e.key === 'PageUp'){
+      e.preventDefault(); goToSection(currentSection - 1);
+    } else if (e.key === 'Home'){
+      e.preventDefault(); goToSection(0);
+    } else if (e.key === 'End'){
+      e.preventDefault(); goToSection(sections.length - 1);
+    }
+  });
 
   // ---- click-to-copy contact icons ----
   function copyText(text){
@@ -439,7 +613,7 @@
   // Triangular falloff: 1 right at this layer, fading to 0 one full layer
   // away in either direction — gives the two layers on either side of
   // `progress` a smooth crossfade instead of a hard on/off switch.
-  function layerWeight(li){ return Math.max(0, 1 - Math.abs(li - progress)); }
+  function layerWeight(li, p){ return Math.max(0, 1 - Math.abs(li - (p === undefined ? progress : p))); }
 
   function nodeCountForLayer(li, narrow){
     if (layerCount === 1) return narrow ? 7 : 11;
@@ -473,7 +647,7 @@
         var t = count === 1 ? 0.5 : i / (count - 1);
         var x = marginX + t * usableW + rand(-12, 12);
         var y = y0 + rand(-H * 0.015, H * 0.015);
-        nodes.push({ x: x, y: y, r: rand(1.4, 3), phase: Math.random() * Math.PI * 2 });
+        nodes.push({ x: x, y: y, hx: x, hy: y, r: rand(1.4, 3), phase: Math.random() * Math.PI * 2 });
       }
       layers.push(nodes);
     }
@@ -505,19 +679,47 @@
     }
   }
 
+  // ---- cursor "magnetic field": nodes within reach drift a few px toward
+  // the pointer and spring back once it moves away. Edges read the same
+  // node objects (a/b), so wires follow automatically — the local mesh
+  // feels like it physically responds to the cursor rather than just
+  // lighting up in place. ----
+  var MAGNET_REACH = 130, MAGNET_MAX_SHIFT = 10;
+  function updateMagnetism(){
+    layers.forEach(function(nodes){
+      nodes.forEach(function(n){
+        var tx = n.hx, ty = n.hy;
+        if (mouseX !== null){
+          var d = Math.hypot(n.hx - mouseX, n.hy - mouseY);
+          if (d < MAGNET_REACH){
+            var pull = 1 - d / MAGNET_REACH;
+            pull *= pull;
+            var dirX = (mouseX - n.hx) / (d || 1);
+            var dirY = (mouseY - n.hy) / (d || 1);
+            tx = n.hx + dirX * pull * MAGNET_MAX_SHIFT;
+            ty = n.hy + dirY * pull * MAGNET_MAX_SHIFT;
+          }
+        }
+        n.x += (tx - n.x) * 0.12;
+        n.y += (ty - n.y) * 0.12;
+      });
+    });
+  }
+
   // Soft radial light pool — this is what makes the dark canvas read as
   // "illuminated" around lit nodes rather than just having brighter dots.
   // Drawn with 'lighter' compositing so overlapping pools add brightness.
-  function glowAt(x, y, radius, alpha){
+  function glowAtColor(x, y, radius, color, alpha){
     if (radius <= 0 || alpha <= 0) return;
     var g = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    g.addColorStop(0, 'rgba(' + accentWarm.join(',') + ',' + alpha.toFixed(3) + ')');
-    g.addColorStop(1, 'rgba(' + accentWarm.join(',') + ',0)');
+    g.addColorStop(0, 'rgba(' + color.join(',') + ',' + alpha.toFixed(3) + ')');
+    g.addColorStop(1, 'rgba(' + color.join(',') + ',0)');
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
   }
+  function glowAt(x, y, radius, alpha){ glowAtColor(x, y, radius, accentWarm, alpha); }
 
   function draw(){
     ctx.clearRect(0, 0, W, H);
@@ -537,7 +739,7 @@
       var w = layerWeight(li);
       if (w <= 0.03) return;
       nodes.forEach(function(n){
-        glowAt(n.x, n.y, lerp(0, 46, w), lerp(0, 0.1, w) * (0.75 + 0.25 * blink));
+        glowAt(n.x, n.y, lerp(0, 60, w), lerp(0, 0.16, w) * (0.75 + 0.25 * blink));
       });
     });
     if (activity > 0.03){
@@ -545,11 +747,11 @@
         if (e.li !== baseLayer) return;
         var x = e.a.x + (e.b.x - e.a.x) * frac;
         var y = e.a.y + (e.b.y - e.a.y) * frac;
-        glowAt(x, y, 60 * activity, 0.16 * activity);
+        glowAt(x, y, 75 * activity, 0.24 * activity);
       });
     }
     if (mouseX !== null){
-      glowAt(mouseX, mouseY, 75, 0.15 * (0.8 + 0.2 * blink));
+      glowAt(mouseX, mouseY, 85, 0.22 * (0.8 + 0.2 * blink));
     }
     ctx.globalCompositeOperation = 'source-over';
 
@@ -576,7 +778,7 @@
       ctx.save();
       ctx.strokeStyle = g;
       ctx.shadowColor = 'rgba(' + accentWarm.join(',') + ',0.5)';
-      ctx.shadowBlur = 3;
+      ctx.shadowBlur = 5;
       ctx.beginPath();
       ctx.moveTo(ax, ay);
       ctx.lineTo(bx, by);
@@ -634,13 +836,13 @@
         var w = Math.max(lw, cursorWeight(n.x, n.y));
         ctx.save();
         if (w > 0.02){
-          var r = lerp(1, 1.7, w) * n.r;
+          var r = lerp(1, 2, w) * n.r;
           var alpha = lerp(0.16, 0.4 + 0.5 * blink, w);
           var cr = Math.round(lerp(accentCool[0], accentWarm[0], w));
           var cg = Math.round(lerp(accentCool[1], accentWarm[1], w));
           var cb = Math.round(lerp(accentCool[2], accentWarm[2], w));
-          ctx.shadowColor = 'rgba(' + accentWarm.join(',') + ',' + (0.8 * w).toFixed(3) + ')';
-          ctx.shadowBlur = (5 + 6 * blink) * w;
+          ctx.shadowColor = 'rgba(' + accentWarm.join(',') + ',' + (0.85 * w).toFixed(3) + ')';
+          ctx.shadowBlur = (8 + 9 * blink) * w;
           ctx.fillStyle = 'rgba(' + cr + ',' + cg + ',' + cb + ',' + alpha.toFixed(3) + ')';
           ctx.beginPath();
           ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
@@ -667,13 +869,46 @@
         var y = e.a.y + (e.b.y - e.a.y) * frac;
         ctx.save();
         ctx.shadowColor = 'rgba(' + accentWarm.join(',') + ',' + (0.95 * activity).toFixed(3) + ')';
-        ctx.shadowBlur = 9;
+        ctx.shadowBlur = 13;
         ctx.fillStyle = 'rgba(' + accentWarm.join(',') + ',' + (0.95 * activity).toFixed(3) + ')';
         ctx.beginPath();
-        ctx.arc(x, y, 2.4, 0, Math.PI * 2);
+        ctx.arc(x, y, 2.8, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       });
+    }
+
+    // ---- idle "scroll hint": the layers immediately above and below the
+    // current one twinkle faintly — each node on its own random phase, like
+    // distant stars rather than one traveling marker — so the background
+    // quietly suggests "there's more this way" in both directions at once.
+    // Cool blue, well below the warm accent's brightness, so it stays
+    // ambient rather than competing with real interaction feedback. ----
+    var showHint = !reduceMotion && !isSnapping;
+    hintOpacity += ((showHint ? 1 : 0) - hintOpacity) * 0.05;
+    if (hintOpacity > 0.01){
+      var neighborLayers = [];
+      if (currentSection - 1 >= 0) neighborLayers.push(currentSection - 1);
+      if (currentSection + 1 <= layerCount - 1) neighborLayers.push(currentSection + 1);
+      ctx.globalCompositeOperation = 'lighter';
+      neighborLayers.forEach(function(li){
+        layers[li].forEach(function(n){
+          var raw = 0.5 + 0.5 * Math.sin(now * 3.6 + n.phase * 3.1);
+          var twinkle = raw * raw * raw; // mostly dark, brief soft peaks
+          var alpha = 0.3 * twinkle * hintOpacity;
+          if (alpha <= 0.01) return;
+          glowAtColor(n.x, n.y, 18, accentCool, alpha);
+          ctx.save();
+          ctx.shadowColor = 'rgba(' + accentCool.join(',') + ',' + alpha.toFixed(3) + ')';
+          ctx.shadowBlur = 6;
+          ctx.fillStyle = 'rgba(' + accentCool.join(',') + ',' + (alpha * 1.2).toFixed(3) + ')';
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+      });
+      ctx.globalCompositeOperation = 'source-over';
     }
   }
 
@@ -685,6 +920,7 @@
     // right as a section settled. Sampling scrollY here keeps it locked to
     // the actual frame rate regardless of event timing.
     updateActiveSection();
+    if (!reduceMotion){ updateMagnetism(); }
     draw();
     if (!reduceMotion){ requestAnimationFrame(loop); }
   }
@@ -706,7 +942,7 @@
       var d = Math.abs(e.clientY - layerY[li]);
       if (d < bestDist){ bestDist = d; bestLi = li; }
     }
-    sections[bestLi].scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
+    goToSection(bestLi);
   });
 })();
 </script>
