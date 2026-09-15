@@ -408,7 +408,7 @@ const TOUCH_FADE=1100, POINTER_POWER=1.15;
 // matrix cells that flicker on by themselves. Everything else stays dark.
 // Ambient is near zero at rest, so unlit fabric stays invisible. A section
 // change raises it for the length of the flight, then it fades back to dark.
-const AMBIENT=.065, REVEAL=.46, REVEAL_IN=190, REVEAL_OUT=780;
+const AMBIENT=.065, REVEAL=.30, REVEAL_IN=190, REVEAL_OUT=780;
 const WARM=[1,.68,.36], COOL=[.60,.79,1], MAX_LIGHTS=6;
 let activeCells=[], lights=[];
 // Section anchors are neighboring districts in the same unbounded compute fabric.
@@ -452,11 +452,11 @@ function createPackage(canvas){
   f=f*f*L.w;total+=f;tint+=uLightColor[i]*f;
  }
  if(uSweepGain>0.0){
-  float f=(1.0-smoothstep(0.0,uSweepWidth,abs(frag.x+frag.y-uSweepHead)))*uSweepGain;
-  f=f*f;total+=f;tint+=vec3(1.0,.72,.42)*f;
+  float f=1.0-smoothstep(0.0,1.0,abs(frag.x+frag.y-uSweepHead)/uSweepWidth);
+  f=f*f*uSweepGain;total+=f;tint+=vec3(1.0,.69,.36)*f;
  }
  vec3 tone=total>.0001?tint/total:vec3(.70,.78,.90);
- float alpha=aa*fog*vStrength*activity*(uAmbient+min(total,1.6));
+ float alpha=aa*fog*vStrength*activity*(uAmbient+min(total,2.6));
  gl_FragColor=vec4(tone,alpha);}`;
  function shader(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;}
  const program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,vs));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(program);
@@ -639,7 +639,7 @@ function sceneSweep(now){
  else if(!motion.matches){const c=(now-idleAnchor)/1000;if(c>=0){const q=(c%5.2)/2.25;if(q<=1)t=q;}}
  if(t<0)return null;
  const span=W+H,pad=460;
- return {t,forward,amp,head:(forward?t:1-t)*(span+pad*2)-pad,width:340,gain:Math.min(1,t*10,(1-t)*10)*(transition?.85:.42)};
+ return {t,forward,amp,head:(forward?t:1-t)*(span+pad*2)-pad,width:transition?250:300,gain:Math.min(1,t*10,(1-t)*10)*(transition?1.7:.62)};
 }
 function labels(){
  buttons.forEach((b,i)=>{b.style.top=(10+80*i/(buttons.length-1))+'%';b.style.opacity=i===current?'1':'.4';b.style.color=i===current?'var(--accent-warm)':'var(--text-dim)';if(i===current)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
