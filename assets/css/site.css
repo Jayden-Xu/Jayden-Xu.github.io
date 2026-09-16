@@ -327,6 +327,10 @@
     position:fixed; inset:0; z-index:1; pointer-events:none;
     background:radial-gradient(ellipse 54% 46% at 50% 50%, rgba(0,0,0,.40) 0%, rgba(0,0,0,.22) 52%, rgba(0,0,0,0) 80%);
   }
+  /* The scrim only exists to hold the fabric down behind the section copy. It
+     leaves with that copy, on the same ramp — otherwise a dive is watched
+     through a 40% black wash sitting exactly over the component it flew to. */
+  html.detail-open .readability-scrim{ opacity:calc(1 - var(--copy,0)); }
   /* Frosted panel behind each section's text. backdrop-filter blurs a hard
      rectangle whatever the background paints, so the whole pseudo-element —
      tint and blur together — is feathered out with a mask. */
@@ -381,11 +385,26 @@
   html:not(.enhanced) .entry-more{ display:none; }
   html:not(.enhanced) .entry-detail[hidden]{ display:block; margin-top:var(--space-item); }
 
-  /* The section copy steps aside for the flight; the frosted panel behind it
-     fades on its own track, as it does for section changes. */
-  html.detail-open .section-body{ opacity:0; pointer-events:none; transition:opacity .34s ease; }
-  html.detail-open .section-inner::before{ opacity:0; }
+  /* The copy is part of the flight, not a cross-fade laid over it. --zoom,
+     --copy and --panel are all written by the animation loop from one eased
+     progress value (see zoomAmount / publishZoom in home.js), so the copy
+     swells past the lens, the panel resolves out of the same push, and none
+     of it can arrive in stages or on a clock of its own. No CSS transitions
+     here on purpose: a transition would be a second, competing animation. */
+  html.detail-open .section-body{
+    opacity:calc(1 - var(--copy,0));
+    transform:scale(calc(1 + var(--copy,0) * .9));
+    transform-origin:50% 44%;
+    filter:blur(calc(var(--copy,0) * 10px));
+    pointer-events:none;
+    will-change:transform, opacity, filter;
+  }
+  /* .section.is-active .section-inner::before is (0,3,1); this has to out-rank
+     it or the frosted panel stays lit through the whole dive, as a tinted,
+     blurred rectangle sitting over the component the camera flew to. */
+  html.detail-open .section.is-active .section-inner::before{ opacity:calc(1 - var(--copy,0)); transition:none; }
   html.detail-open .section{ overflow:hidden; }
+
 
   .detail{
     position:fixed; inset:0; z-index:12;
@@ -393,11 +412,11 @@
     /* The rail keeps its lane: the panel centres in what is left of the frame
        rather than covering the buttons it hands off to. */
     padding:calc(clamp(1.5rem,5vh,3rem) + env(safe-area-inset-top,0px)) calc(max(var(--gutter),env(safe-area-inset-right,0px)) + var(--nav-edge) + 7.5rem) calc(clamp(1.5rem,5vh,3rem) + env(safe-area-inset-bottom,0px)) max(var(--gutter),env(safe-area-inset-left,0px));
-    opacity:0; pointer-events:none;
-    transition:opacity .42s ease;
+    opacity:var(--panel,0); pointer-events:none;
   }
   .detail[hidden]{ display:none; }
-  .detail.is-open{ opacity:1; }
+  /* is-open no longer controls whether the panel is seen — --panel does. It
+     only decides when the panel can be touched, which is once it has landed. */
   .detail.is-open .detail-shell{ pointer-events:auto; }
   .detail-shell{
     position:relative; width:min(62rem,100%); max-height:100%;
@@ -406,10 +425,12 @@
     backdrop-filter:blur(11px) saturate(.9);
     -webkit-backdrop-filter:blur(11px) saturate(.9);
     border:1px solid var(--rule);
-    transform:translate3d(0,14px,0) scale(.985);
-    transition:transform .5s cubic-bezier(.2,.7,.2,1);
+    /* The panel resolves out of the dive: it comes in behind the plane of the
+       screen and settles as the camera does, on the same ramp. */
+    transform:translate3d(0,calc((1 - var(--panel,0)) * 30px),0) scale(calc(.74 + var(--panel,0) * .26));
+    filter:blur(calc((1 - var(--panel,0)) * 9px));
+    will-change:transform, filter;
   }
-  .detail.is-open .detail-shell{ transform:none; }
   .detail-shell:focus{ outline:none; }
   /* Corner ticks: the frame reads as an instrument, not a card. */
   .detail-shell::before, .detail-shell::after{
@@ -501,5 +522,6 @@
   }
   @media(prefers-reduced-motion:reduce){
     .detail, .detail-shell, html.detail-open .section-body{ transition:none; }
-    .detail-shell{ transform:none; }
+    .detail-shell{ transform:none; filter:none; }
+    html.detail-open .section-body{ transform:none; filter:none; }
   }

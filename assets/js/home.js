@@ -25,6 +25,11 @@ const TOUCH_FADE=1500, POINTER_POWER=5;
 // Ambient is near zero at rest, so unlit fabric stays invisible. A section
 // change raises it for the length of the flight, then it fades back to dark.
 const AMBIENT=.065, REVEAL=.30, REVEAL_IN=190, REVEAL_OUT=780;
+// A dive opens the lens further still. Nothing is being read over the fabric
+// at that point, so the exposure that keeps the wireframe quiet behind text is
+// simply wasted — the close-up is the one moment the structure is the subject.
+// It rides the flight's own progress, so brightness comes up with the move.
+const DIVE_EXPOSURE=.34;
 // Eight flow fields are solved per district kind. SLOTS is what the shader has
 // room to evaluate per fragment and fixes the uniform sizes; LIVE is how many
 // fronts actually fly, and may be fewer.
@@ -50,24 +55,68 @@ const focusPoses={
  // the camera ends much closer than a section pose, and the lens goes long
  // (a narrow fov magnifies and flattens, the way racking in on a subject does).
  // broadcast array (z=-20): the mast and the dipoles on the outer wavefront
- 'signal-mast':{target:[0,1.55,-20],dist:2.60,phi:.86,theta:.26,fov:.52},
- 'signal-dipole':{target:[4.05,.62,-18.9],dist:2.30,phi:.94,theta:.78,fov:.54},
+ 'signal-mast':{target:[0,1.55,-20],dist:2.24,phi:.86,theta:.26,fov:.47},
+ 'signal-dipole':{target:[4.05,.62,-18.9],dist:1.98,phi:.94,theta:.78,fov:.47},
  // memory district (z=-30): the stacks
- 'mem-stack-core':{target:[0,1.08,-30],dist:2.50,phi:.94,theta:.34,fov:.52},
- 'mem-stack-west':{target:[-2.5,.70,-32.1],dist:2.40,phi:1.00,theta:-.52,fov:.52},
- 'mem-stack-east':{target:[2.5,.86,-32.1],dist:2.40,phi:.98,theta:.62,fov:.52},
+ 'mem-stack-core':{target:[0,1.08,-30],dist:2.15,phi:.94,theta:.34,fov:.47},
+ 'mem-stack-west':{target:[-2.5,.70,-32.1],dist:2.06,phi:1.00,theta:-.52,fov:.47},
+ 'mem-stack-east':{target:[2.5,.86,-32.1],dist:2.06,phi:.98,theta:.62,fov:.47},
  // switch fabric (z=-40): the crossbar and its four port islands
- 'switch-core':{target:[0,.82,-40],dist:2.30,phi:.82,theta:.16,fov:.52},
- 'switch-arm-east':{target:[2.55,.58,-40],dist:2.40,phi:.86,theta:.72,fov:.54},
- 'switch-arm-north':{target:[0,.58,-43.1],dist:2.40,phi:.86,theta:.08,fov:.54},
+ 'switch-core':{target:[0,.82,-40],dist:1.98,phi:.82,theta:.16,fov:.47},
+ 'switch-arm-east':{target:[2.55,.58,-40],dist:2.06,phi:.86,theta:.72,fov:.47},
+ 'switch-arm-north':{target:[0,.58,-43.1],dist:2.06,phi:.86,theta:.08,fov:.47},
  // radial package (z=0) and tensor floorplan (z=-10), for entries filed there
- 'package-die':{target:[0,.74,0],dist:2.40,phi:.80,theta:.30,fov:.52},
- 'tensor-chiplet':{target:[2.18,.60,-12.18],dist:2.40,phi:.88,theta:.50,fov:.52}
+ 'package-die':{target:[0,.74,0],dist:2.06,phi:.80,theta:.30,fov:.47},
+ 'tensor-chiplet':{target:[2.18,.60,-12.18],dist:2.06,phi:.88,theta:.50,fov:.47}
 };
-const ZOOM_IN=1300, ZOOM_OUT=1000, DETAIL_DRIFT=.24;
+const ZOOM_IN=1500, ZOOM_OUT=1150, DETAIL_DRIFT=.24;
 // The flight and the panel are two states, never both: zoom holds the camera
 // while it travels, detail holds it once it has arrived.
 let zoom=null, detail=null;
+// A trapezoid velocity profile: the rate climbs over the first RAMP of the
+// move, holds flat through the middle, and falls over the last RAMP. Paired
+// with the geometric distance blend this is an genuinely even zoom — the same
+// magnification per unit time from start to finish — while still leaving and
+// arriving at zero velocity, so there is no jolt in or out of the idle sway.
+// An ease-in-out curve would instead be fastest at the midpoint and crawling
+// at both ends, which is exactly what reads as the move changing its mind.
+const RAMP=.22, RUSH_V=1/(1-RAMP);
+const rush=t=>{
+ t=clamp(t);
+ if(t<RAMP)return RUSH_V*t*t/(2*RAMP);
+ if(t>1-RAMP){const q=1-t;return 1-RUSH_V*q*q/(2*RAMP);}
+ return RUSH_V*(RAMP/2+(t-RAMP));
+};
+// The same profile read as speed. Everything that should read as velocity —
+// the streaks, the flare, the light band — is driven by this rather than by
+// position, so they hold steady exactly while the camera is at full rate.
+const surge=t=>{t=clamp(t);return t<RAMP?t/RAMP:t>1-RAMP?(1-t)/RAMP:1;};
+// The one number the whole close-up runs on: 0 is the page, 1 is the close-up.
+// The camera, the page copy, the panel and the streaks all read this same
+// value, which is what keeps them from arriving in stages.
+function zoomAmount(now){
+ if(detail)return 1;
+ if(!zoom)return 0;
+ const u=rush(clamp((now-zoom.start)/zoom.span));
+ return zoom.dir==='in'?u:1-u;
+}
+// Published to CSS so the 2D page is part of the same move as the 3D camera:
+// the copy swells and dissolves as the lens closes on the component, and the
+// panel resolves out of the same push rather than fading in afterwards.
+let zoomPublished=-1;
+function publishZoom(now){
+ const k=zoomAmount(now);
+ if(k===zoomPublished&&!zoom)return;
+ zoomPublished=k;
+ const style=document.documentElement.style;
+ style.setProperty('--zoom',k.toFixed(4));
+ // The copy clears early; the panel is held back to the last stretch of the
+ // move, so most of the flight is spent looking at the fabric rather than at
+ // a panel sliding over it. Both are ramps off the same clock, so neither
+ // arrives as a separate stage.
+ style.setProperty('--copy',smooth(clamp(k*1.55)).toFixed(4));
+ style.setProperty('--panel',smooth(clamp((k-.52)/.48)).toFixed(4));
+}
 
 // Screen-space line segments: real 3D edges with a consistent, antialiased width.
 // No solid faces, image textures, component labels, or component-specific colors.
@@ -372,7 +421,11 @@ function createPackage(canvas){
  const selA=new Float32Array(SLOTS*4),selB=new Float32Array(SLOTS*4);
  const radii=new Float32Array(SLOTS),gains=new Float32Array(SLOTS);
  const norm=v=>{const l=Math.hypot(...v);return v.map(x=>x/l);};const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];const dot=(a,b)=>a.reduce((s,x,i)=>s+x*b[i],0);
- function view(eye,target){const z=norm(eye.map((v,i)=>v-target[i])),x=norm(cross([0,1,0],z)),y=cross(z,x);return new Float32Array([x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-dot(x,eye),-dot(y,eye),-dot(z,eye),1]);}
+ // `roll` banks the camera about its own view axis. Nothing on screen is
+ // re-aimed by it, so it buys drama without ever breaking the line of a move.
+ function view(eye,target,roll){const z=norm(eye.map((v,i)=>v-target[i]));let x=norm(cross([0,1,0],z)),y=cross(z,x);
+ if(roll){const c=Math.cos(roll),sn=Math.sin(roll),rx=x.map((v,i)=>v*c+y[i]*sn);y=y.map((v,i)=>v*c-x[i]*sn);x=rx;}
+ return new Float32Array([x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-dot(x,eye),-dot(y,eye),-dot(z,eye),1]);}
  let aspect=1,dpr=1;
  function resize(){dpr=Math.min(devicePixelRatio||1,1.6,Math.sqrt(2200000/(W*H)));canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);aspect=W/H;gl.viewport(0,0,canvas.width,canvas.height);}
  function render(p,time,lights,sweep,ambient,pulses){
@@ -402,7 +455,7 @@ function createPackage(canvas){
   gl.uniform3fv(u.uPulseRadius,radii);gl.uniform3fv(u.uPulseGain,gains);
   gl.uniform3fv(u.uPulseTint,PULSE_TINT);
   gl.uniform1f(u.uPulseWidth,PULSE_WIDTH);gl.uniform1f(u.uPulseTail,PULSE_TAIL);
-  gl.uniformMatrix4fv(u.uView,false,view(eye,p.target));gl.uniformMatrix4fv(u.uProjection,false,proj);gl.uniform3fv(u.uEye,eye);gl.uniform3fv(u.uOrigin,[0,0,0]);gl.uniform2f(u.uResolution,canvas.width,canvas.height);gl.uniform2f(u.uViewport,canvas.width,canvas.height);gl.uniform1f(u.uPixelRatio,dpr);gl.uniform1f(u.uTime,time/1000);gl.drawArrays(gl.TRIANGLES,0,segCount*6);
+  gl.uniformMatrix4fv(u.uView,false,view(eye,p.target,p.roll||0));gl.uniformMatrix4fv(u.uProjection,false,proj);gl.uniform3fv(u.uEye,eye);gl.uniform3fv(u.uOrigin,[0,0,0]);gl.uniform2f(u.uResolution,canvas.width,canvas.height);gl.uniform2f(u.uViewport,canvas.width,canvas.height);gl.uniform1f(u.uPixelRatio,dpr);gl.uniform1f(u.uTime,time/1000);gl.drawArrays(gl.TRIANGLES,0,segCount*6);
  }
  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();renderFailed=true;if(transition)finish();});
  resize();return {resize,render};
@@ -411,8 +464,14 @@ function createPackage(canvas){
 // The fabric is always on screen, so navigation is one short camera flight
 // across it while the text panels slide past — no full-screen takeover.
 const DURATION=900, OUT_END=240, IN_START=330, IN_END=860;
-function blendPose(a,b,t){
- return {target:vMix(a.target,b.target,t),distance:mix(a.dist,b.dist,t),theta:mix(a.theta,b.theta,t),phi:mix(a.phi,b.phi,t),fov:mix(a.fov||.69,b.fov||.69,t)};
+// Distance is interpolated geometrically, not linearly: halving the distance
+// looks like the same amount of zoom whether it happens at 6 units or at 2, so
+// a constant ratio per unit time is what reads as one even, continuous move.
+// Linear interpolation crawls at the far end and slams at the near end, which
+// is most of why the old flight felt like it changed its mind halfway.
+function blendPose(a,b,t,tFov){
+ const da=Math.max(.05,a.dist),db=Math.max(.05,b.dist);
+ return {target:vMix(a.target,b.target,t),distance:da*Math.pow(db/da,t),theta:mix(a.theta,b.theta,t),phi:mix(a.phi,b.phi,t),fov:mix(a.fov||.69,b.fov||.69,tFov===undefined?t:tFov),roll:0};
 }
 // Drift is added on top of whatever base pose is active, so resuming the idle
 // sway at the end of a flight produces no jump.
@@ -428,20 +487,19 @@ function applyDrift(p,now,k=1){
 function cameraPose(now){
  let p,drift=1;
  if(zoom){
-  // The flight is shaped, not linear: it first pulls back off the district —
-  // winding up — then rushes past the resting distance before settling on it.
-  // `swing` is one full sine over the flight, so it is +back, then -in, and
-  // exactly zero at both ends. The lens widens through the middle and closes
-  // to its long setting on arrival, which is what sells the focus.
-  const span=zoom.dir==='in'?ZOOM_IN:ZOOM_OUT;
-  const u=smooth(clamp((now-zoom.start)/span)),k=zoom.dir==='in'?u:1-u;
-  const arc=Math.sin(Math.PI*u),swing=Math.sin(2*Math.PI*u);
-  p=blendPose(poses[current],zoom.pose,k);
-  // The wind-up is bigger than the overshoot on purpose: pulling far back
-  // reads as travel, while rushing too far in would put the camera inside the
-  // component and cull the very lines it is meant to be looking at.
-  p.distance=Math.max(1.05,p.distance+swing*(swing>0?2.40:1.10));
-  p.fov+=arc*.34;p.theta+=arc*.30*(zoom.dir==='in'?1:-1);
+  // One unbroken move. Every quantity below is monotonic in `k`, so there is
+  // no point in the flight where the camera reverses, pauses, or re-aims: it
+  // leaves the district pose and arrives at the component pose, and the only
+  // thing that varies is how fast it is going.
+  const k=zoomAmount(now);
+  // The lens runs ahead of the dolly — it is already most of the way to its
+  // long setting while the camera is still closing. Focal length and distance
+  // pulling against each other is the Vertigo warp, and it is what makes the
+  // structure swell through the middle of the move instead of merely growing.
+  p=blendPose(poses[current],zoom.pose,k,clamp(k*1.32));
+  // A bank into the move: rotation about the view axis only, so nothing on
+  // screen is re-aimed — it reads as speed without costing continuity.
+  p.roll=Math.sin(Math.PI*k)*.11*(zoom.dir==='in'?1:-1);
   drift=mix(1,DETAIL_DRIFT,k);
  }else if(detail){
   p=blendPose(detail.pose,detail.pose,0);drift=DETAIL_DRIFT;
@@ -510,12 +568,14 @@ function retireFlight(f,now,taken){
 // The navigation front stays in screen space: it belongs to the page turn.
 function sceneSweep(now){
  if(zoom){
-  // Same band of light, read as speed rather than as a page turn.
-  const span=zoom.dir==='in'?ZOOM_IN:ZOOM_OUT,t=clamp((now-zoom.start)/span),forward=zoom.dir==='in';
-  const reach=W+H,pad=520;
-  return {kind:'warp',t,forward,amp:.42,tint:FRONT_TINT,
-   head:(forward?t:1-t)*(reach+pad*2)-pad,width:360,
-   gain:Math.sin(Math.PI*t)*2.0};
+  // Same band of light, read as speed rather than as a page turn — but kept
+  // low. It only grazes the wireframe as it passes; the move itself is what
+  // is meant to be doing the work, so the light must not out-shout it.
+  const t=clamp((now-zoom.start)/zoom.span),forward=zoom.dir==='in';
+  const v=surge(t),reach=W+H,pad=520;
+  return {kind:'warp',t,v,forward,tint:FRONT_TINT,
+   head:(forward?t:1-t)*(reach+pad*2)-pad,width:420,
+   gain:v*.85};
  }
  if(!transition)return null;
  const t=clamp((now-transition.start)/DURATION),forward=transition.forward;
@@ -700,7 +760,7 @@ function drawOverlay(now,sweep){
   for(let i=0;i<matrixCells.length;i++){
    const cell=matrixCells[i],x=cell.x+9,y=cell.y+9;
    let g=cellGlow[i]*decay;
-   if(sweep){
+   if(sweep&&sweep.kind!=='warp'){
     const reach=sweep.width*.8,d=Math.abs(x+y-sweep.head);
     if(d<reach)g=Math.max(g,(1-d/reach)**2);
    }
@@ -711,7 +771,11 @@ function drawOverlay(now,sweep){
   }
   bgc.globalAlpha=1;
  }
- if(sweep&&sweep.kind==='warp')drawWarp(bgc,sweep);else if(sweep)drawPulse(bgc,sweep.t,sweep.amp,sweep.forward);
+ // A page turn gets its diagonal wavefront. A dive gets nothing here on
+ // purpose: the 2D overlay is what the fabric is read *through*, so anything
+ // drawn on it during a close-up competes with the very geometry the flight
+ // exists to show.
+ if(sweep&&sweep.kind!=='warp')drawPulse(bgc,sweep.t,sweep.amp,sweep.forward);
  if(pointer&&power>0){
   bgc.globalAlpha=power;bgc.drawImage(glowSprite,pointer.x-160,pointer.y-160);
   const col=Math.floor(pointer.x/30),row=Math.floor(pointer.y/30);
@@ -723,39 +787,19 @@ function drawOverlay(now,sweep){
   bgc.globalAlpha=1;
  }
 }
-// The dive's own overlay: the same matrix cells, streaming out past the lens
-// (or back in on the way out) instead of crossing the screen on a diagonal.
-const WARP_RAYS=34, WARP_CELLS=7;
-function drawWarp(ctx,s){
- const t=clamp(s.t),env=Math.sin(Math.PI*t);
- if(env<=.02)return;
- const cx=W/2,cy=H/2,reach=Math.hypot(W,H)*.60;
- for(let i=0;i<WARP_RAYS;i++){
-  const a=i*2.39996,ca=Math.cos(a),sa=Math.sin(a),seed=(i*67%23)/23;
-  for(let j=0;j<WARP_CELLS;j++){
-   let q=(t*1.4+seed*.4+j/WARP_CELLS)%1;if(!s.forward)q=1-q;
-   const d=60+q*reach*(.45+seed*.7),g=env*(1-Math.abs(q*2-1))*(.55+seed*.45);
-   if(g<.04)continue;
-   const size=5+d/reach*20,x=cx+ca*d,y=cy+sa*d*.88;
-   if(x<-size||y<-size||x>W+size||y>H+size)continue;
-   ctx.globalAlpha=Math.min(.55,g*.5);
-   ctx.fillStyle=(i+j)%3?'#9cb6cc':'#e8a052';
-   ctx.fillRect(x-size/2,y-size/2,size,size);
-  }
- }
- ctx.globalAlpha=1;
-}
 function drawScene(now){
  const sweep=sceneSweep(now),pulses=scenePulses(now);
  document.body.dataset.heartbeat=transition?'navigating':pulses?'flowing':'off';
  drawOverlay(now,sweep);drawNavMatrix(now);
  const reveal=revealAmount(now);
- if(renderer&&!renderFailed)renderer.render(cameraPose(now),now,sceneLights(now),sweep,AMBIENT+REVEAL*reveal,pulses);
+ const exposure=AMBIENT+REVEAL*reveal+DIVE_EXPOSURE*zoomAmount(now);
+ if(renderer&&!renderFailed)renderer.render(cameraPose(now),now,sceneLights(now),sweep,exposure,pulses);
 }
 function frame(now){
  raf=0;if(document.hidden)return;
  if(transition)stepTransition(now);
  if(zoom)stepZoom(now);
+ publishZoom(now);
  const budget=transition||zoom?0:(now-pointerStamp<120?12:W<=900?48:32);
  if(motion.matches||now-lastBg>=budget){drawScene(now);lastBg=now;}
  // An open close-up holds the exposure at full, so it cannot be what keeps
@@ -829,7 +873,7 @@ buttons.forEach((b,i)=>{
  b.addEventListener('click',()=>{
   wakeNavMatrix(i);
   if(zoom)return; // mid-flight: let it land first
-  if(detail){if(i!==current)closeDetail(()=>go(i));else closeDetail();return;}
+  if(detail){closeDetail(null,i);return;}
   go(i);
  });
  b.addEventListener('pointerenter',e=>{if(e.pointerType!=='touch'){navHover=i;wakeNavMatrix(i);}});
@@ -869,7 +913,7 @@ const detailLinks=$('#detailLinks'),detailClose=$('#detailClose');
 // An entry with no named focus dives straight down onto its own district.
 function fallbackFocus(){
  const b=poses[current];
- return {target:[b.target[0],b.target[1]+.25,b.target[2]],dist:b.dist*.38,phi:b.phi,theta:b.theta+.22,fov:.54};
+ return {target:[b.target[0],b.target[1]+.25,b.target[2]],dist:b.dist*.32,phi:b.phi,theta:b.theta+.22,fov:.47};
 }
 function instant(){return motion.matches||!renderer||renderFailed;}
 function openDetail(trigger){
@@ -896,29 +940,49 @@ function openDetail(trigger){
  root.classList.add('detail-open');
  document.body.dataset.heartbeat='off';
  if(instant()){detail={entry,pose,trigger};showPanel();lastBg=0;ensureFrame();return;}
- zoom={dir:'in',start:performance.now(),pose,entry,trigger};
- lastBg=0;ensureFrame();
+ zoom={dir:'in',start:performance.now(),span:ZOOM_IN,pose,entry,trigger};
+ publishZoom(zoom.start);lastBg=0;ensureFrame();
 }
 function showPanel(){
  detailLayer.classList.add('is-open');
+ publishZoom(performance.now());
  document.body.dataset.phase='detail';
  // The body is the scroll container, so focusing it (not the button) is what
  // lets a keyboard read the long form.
  (detailBody||detailClose).focus({preventScroll:true});
 }
-// `then` is what the rail hands over: surface first, then fly to the section
-// that was asked for.
-function closeDetail(then){
+// `to` is a section the rail has asked for. The flight out is then aimed at
+// *that* section's district instead of at the one the close-up was opened
+// from, so leaving for somewhere else is a single move — not a flight home
+// followed by a second flight across, which is two of them back to back.
+function closeDetail(then,to){
  if(!detail||zoom)return;
  const d=detail;detail=null;
  detailLayer.classList.remove('is-open');
+ let span=ZOOM_OUT;
+ if(to!==undefined&&to!==current&&to>=0&&to<sections.length){
+  const hops=Math.abs(to-current);
+  current=to;
+  history.replaceState(null,'','#'+sections[current].id);
+  // The rail and the progress bar answer the click at once; the copy behind
+  // the panel is still fully dissolved, so the page can be scrolled under it
+  // without anything being seen to jump.
+  labels();
+  sections[current].inert=true;sections[current].setAttribute('aria-hidden','true');
+  snap();
+  // Districts are 10 units apart, so a far hand-off is a much longer trip
+  // than a plain zoom out. Without this the distant ones arrive at a sprint.
+  span+=Math.min(700,hops*190);
+  then=()=>sections[current].focus({preventScroll:true});
+ }
  if(instant()){surface(d.trigger,then);return;}
- zoom={dir:'out',start:performance.now(),pose:d.pose,entry:d.entry,trigger:d.trigger,then};
- lastBg=0;ensureFrame();
+ zoom={dir:'out',start:performance.now(),span,pose:d.pose,entry:d.entry,trigger:d.trigger,then};
+ publishZoom(zoom.start);lastBg=0;ensureFrame();
 }
 function surface(trigger,then){
  root.classList.remove('detail-open');
  detailLayer.hidden=true;
+ publishZoom(performance.now());
  labels(); // restores each section's own inert state
  document.body.dataset.phase='content';
  document.body.dataset.heartbeat=motion.matches?'off':'waiting';
@@ -927,11 +991,11 @@ function surface(trigger,then){
  if(then)then();else if(trigger)trigger.focus({preventScroll:true});
 }
 function stepZoom(now){
- const z=zoom,span=z.dir==='in'?ZOOM_IN:ZOOM_OUT,t=now-z.start;
+ const z=zoom,span=z.span,t=now-z.start;
  document.body.dataset.phase=z.dir==='in'?'dive':'surface';
- // Outbound, the copy starts coming back before the camera lands, so the page
- // is already in place the moment the flight stops.
- if(z.dir==='out'&&!z.restored&&t>span*.55){z.restored=true;root.classList.remove('detail-open');}
+ // Nothing is handed back part-way through any more: the copy comes home on
+ // the same ramp the camera is on, so the flight is one move in both
+ // directions instead of a flight followed by a hand-off.
  if(t<span)return;
  zoom=null;
  if(z.dir==='in'){detail={entry:z.entry,pose:z.pose,trigger:z.trigger};showPanel();lastBg=0;ensureFrame();}
