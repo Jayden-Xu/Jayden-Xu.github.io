@@ -492,6 +492,13 @@
     }
     .detail-shell{ width:100%; max-height:min(66vh,100%); }
   }
+  /* Phones: the inspect sheet sat low enough that its title read as the bottom
+     of the screen. It grows upward and clears the nav rail by a little more, so
+     the heading lands nearer the middle of the viewport. */
+  @media(max-width:48em){
+    .detail{ padding-bottom:calc(var(--nav-reserve) + 1.25rem + env(safe-area-inset-bottom,0px)); }
+    .detail-shell{ max-height:min(78vh,100%); }
+  }
   @media(prefers-reduced-motion:reduce){
     .detail, .detail-shell, html.detail-open .section-body{ transition:none; }
     .detail-shell{ transform:none; }
