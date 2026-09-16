@@ -1,0 +1,328 @@
+:root{
+    --bg:#000000;
+    --text:#E9E6DF;
+    --text-dim:#9AA0AA;
+    --accent-warm:#E8963D;
+    --accent-cool:#5FA0C9;
+    --rule:#22262E;
+    --rule-soft:#14171C;
+    --font-mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --font-sans:'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-script:'Caveat', cursive;
+    /* Type follows the user's base font, with bounded viewport growth. */
+    --fs-body:clamp(1.0625rem,1rem + .16vw,1.25rem);
+    --fs-note:clamp(.9375rem,.9rem + .08vw,1.0625rem);
+    --fs-meta:clamp(.875rem,.83rem + .09vw,1rem);
+    --fs-tag:clamp(.8125rem,.78rem + .06vw,.9375rem);
+    --fs-heading:clamp(1.25rem,1.1rem + .45vw,1.75rem);
+    --fs-role:clamp(1.0625rem,1rem + .23vw,1.375rem);
+    --fs-school:clamp(1.4rem,1.45rem + .2vw,1.875rem);
+    --fs-nav:clamp(.8125rem,.78rem + .11vw,1rem);
+    --content-max:clamp(35rem,26rem + 12vw,44rem);
+    --gutter:clamp(1rem,4vw,3rem);
+    --space-section:clamp(2rem,9vh,8rem);
+    --space-heading:clamp(1.5rem,4.5vh,3rem);
+    --space-item:clamp(1.25rem,4vh,2.5rem);
+    --nav-hit:clamp(44px,2.5rem + .28vw,56px);
+    --nav-edge:clamp(1rem,1.8vw,3.5rem);
+    --nav-gap:clamp(2px,.3vw,8px);
+    --nav-reserve:0px;
+    --contact-size:clamp(48px,2.75rem + .8vw,64px);
+    --contact-gap:clamp(1rem,2.4vw,2.25rem);
+    --timeline-indent:clamp(1rem,2vw,1.5rem);
+  }
+  *{ box-sizing:border-box; }
+  /* scroll transitions are hand-animated in JS (see goToSection); the
+     browser's own smooth-scroll would otherwise re-animate every frame of
+     that animation on top of it and fight for the final position. */
+  html{ scroll-behavior:auto; font-size:100%; -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+  body{
+    margin:0;
+    background-color:var(--bg);
+    color:var(--text);
+    font-family:var(--font-sans);
+    font-size:var(--fs-body);
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{ color:var(--accent-cool); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+  a:focus-visible, button:focus-visible{ outline:2px solid var(--accent-warm); outline-offset:3px; }
+
+  .progress{ position:fixed; top:0; left:0; width:100%; height:2px; background:var(--rule); z-index:30; pointer-events:none; }
+  .progress-fill{ height:100%; background:var(--accent-warm); width:0%; }
+
+  /* Two fixed background layers, always on: the lit wireframe fabric (WebGL)
+     and the matrix/glow overlay (2D) that acts as its light source. */
+  #packageCanvas{ position:fixed; inset:0; display:block; width:100%; height:100%; z-index:0; pointer-events:none; background:#000; }
+  #netBg{ position:fixed; inset:0; width:100%; height:100%; z-index:1; pointer-events:none; }
+
+  /* Content moves between sections over the persistent compute background. */
+  #pageContent{ opacity:1; }
+
+  /* The same matrix pulse used by the background sits behind plain labels. */
+  .sectionLabels{
+    position:fixed; right:max(var(--nav-edge),env(safe-area-inset-right,0px)); top:0; width:max-content;
+    height:100vh; height:100dvh; z-index:20;
+    display:flex; flex-direction:column; justify-content:space-between; align-items:stretch;
+    padding:max(0px,calc(10vh - var(--nav-hit) / 2)) 0; padding:max(0px,calc(10dvh - var(--nav-hit) / 2)) 0;
+    pointer-events:none; isolation:isolate;
+  }
+  .sectionLabels::before{
+    content:""; position:absolute; inset:0 calc(-1 * max(var(--nav-edge),env(safe-area-inset-right,0px))) 0 -22px; z-index:-1;
+    background:linear-gradient(90deg,transparent,rgba(3,5,8,.36) 40%,rgba(3,5,8,.72));
+    pointer-events:none;
+  }
+  .sectionLabels::after{
+    content:""; position:absolute; right:0; top:10%; bottom:10%; width:1px;
+    background:linear-gradient(transparent,rgba(111,161,193,.28) 8% 92%,transparent);
+    pointer-events:none;
+  }
+  /* Frost only the small areas behind labels; keep the pulse above the glass.
+     The radial mask feathers tint and blur together, without a panel edge. */
+  .nav-frost{
+    position:absolute;inset:0;z-index:-1;display:flex;
+    flex-direction:inherit;justify-content:inherit;gap:inherit;padding:inherit;
+    pointer-events:none;
+  }
+  .nav-frost span{position:relative;flex:0 0 var(--nav-hit);min-width:0;}
+  .nav-frost span::before{
+    content:"";position:absolute;inset:-8px -10px;
+    background:rgba(7,11,16,.58);
+    backdrop-filter:blur(10px) saturate(.8);
+    -webkit-backdrop-filter:blur(10px) saturate(.8);
+    -webkit-mask-image:radial-gradient(ellipse 78% 80% at 50% 50%,#000 30%,rgba(0,0,0,.85) 56%,transparent 100%);
+    mask-image:radial-gradient(ellipse 78% 80% at 50% 50%,#000 30%,rgba(0,0,0,.85) 56%,transparent 100%);
+    pointer-events:none;
+  }
+  #navMatrix{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+  .sectionLabels button{
+    position:relative;z-index:1;flex:0 0 var(--nav-hit);min-height:var(--nav-hit);
+    padding:0 13px 0 11px;margin:0;cursor:pointer;
+    border:0;border-radius:0;background:none;box-shadow:none;
+    font-family:var(--font-mono);font-size:var(--fs-nav);line-height:1.45;
+    letter-spacing:0.05em;text-transform:uppercase;text-align:right;white-space:nowrap;
+    color:#c3d3e0;opacity:1;pointer-events:auto;
+    text-shadow:0 1px 3px #000,0 0 4px #000,0 0 8px rgba(0,0,0,.9);
+    transition:color .2s ease;-webkit-tap-highlight-color:transparent;
+  }
+  .sectionLabels button::after{
+    content:"";position:absolute;right:0;top:50%;width:4px;height:1px;
+    background:currentColor;opacity:.6;pointer-events:none;
+  }
+  .sectionLabels button[aria-current="page"],.sectionLabels button:focus-visible{color:#ffd1a0;}
+  .sectionLabels button:focus-visible{
+    outline:none;text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px;
+  }
+  @media(hover:hover){.sectionLabels button:hover{color:#ffd1a0;}}
+
+  /* Viewport sections retain their scroll mapping. Auto block margins center
+     short content; tall content starts at the top and remains scrollable. */
+  .section{
+    display:flex;align-items:flex-start;justify-content:center;
+    padding-block-start:calc(var(--space-section) + env(safe-area-inset-top,0px));
+    padding-block-end:calc(max(var(--space-section),var(--nav-reserve)) + env(safe-area-inset-bottom,0px));
+    padding-inline-start:max(var(--gutter),env(safe-area-inset-left,0px));
+    padding-inline-end:max(var(--gutter),env(safe-area-inset-right,0px));
+    height:100vh;height:100dvh;box-sizing:border-box;overflow-x:hidden;overflow-y:auto;
+    scroll-padding-block:1rem;
+  }
+  .section + .section{border-top:1px solid var(--rule);}
+  .section-inner{max-width:var(--content-max);width:100%;min-width:0;flex-shrink:0;margin:auto 0;}
+  .section-body{min-width:0;overflow-wrap:anywhere;}
+
+  .idx{ font-family:var(--font-mono); color:var(--accent-warm); font-size:var(--fs-meta); display:block; margin-bottom:clamp(.5rem,1.5vh,.875rem); }
+
+  h2{
+    font-family:var(--font-mono); font-weight:600; font-size:var(--fs-heading); color:var(--text);
+    letter-spacing:0.02em;
+    margin:0 0 var(--space-heading); padding-bottom:clamp(.625rem,2vh,1rem); border-bottom:1px solid var(--rule);
+  }
+
+  /* Identity is readable immediately; the background carries the motion. */
+  .hero-name{ margin:0 0 clamp(.875rem,2vh,1.5rem); line-height:1.12; }
+  .hero-name-en{
+    font-family:var(--font-script); font-size:clamp(2.25rem,2rem + 3.5vw,6.5rem); font-weight:600;
+    text-shadow: 0 0 30px rgba(232,150,61,0.3);
+  }
+  .hero-role{
+    font-family:var(--font-sans);font-weight:500;
+    font-size:clamp(1.125rem,1rem + .45vw,1.75rem);
+    letter-spacing:.035em;line-height:1.45;color:var(--accent-warm);
+    margin:0 0 clamp(.75rem,2vh,1.125rem);
+  }
+  .hero-slogan{
+    font-family:var(--font-sans);font-size:var(--fs-body);line-height:1.65;
+    color:var(--text-dim);margin:0;
+  }
+
+  /* ABOUT */
+  .about-text{ color:var(--text); font-size:var(--fs-body); margin:0 0 clamp(1rem,2.5vh,1.5rem); }
+  .about-text:last-child{ margin-bottom:0; }
+  .about-highlight{ color:var(--accent-warm); font-weight:500; }
+
+  /* EXPERIENCE */
+  .timeline{ position:relative; padding-left:var(--timeline-indent); border-left:1px solid var(--rule); }
+  .role{ margin-bottom:var(--space-item); position:relative; }
+  .role:last-child{ margin-bottom:0; }
+  .role::before{ content:''; position:absolute; left:calc(-1 * var(--timeline-indent) - 5px); top:.5em; width:9px; height:9px; border-radius:50%; background:var(--accent-warm); }
+  .role-title{ font-weight:500; font-size:var(--fs-role); }
+  .role-org{ font-family:var(--font-script); color:var(--accent-cool); font-size:clamp(1.375rem,1.3rem + .2vw,1.75rem); font-weight:600; }
+  .role-meta{ font-family:var(--font-mono); font-size:var(--fs-meta); color:var(--text-dim); margin-top:4px; }
+  .role-note, .project-note, .edu-note{ font-family:var(--font-mono); font-size:var(--fs-note); color:var(--text-dim); margin-top:.5rem; }
+  .role-note::before, .project-note::before, .edu-note::before{ content:'// '; color:var(--rule); }
+
+  .tech-tags{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .tech-tag{
+    font-family:var(--font-mono); font-size:var(--fs-tag); letter-spacing:0.03em;
+    color:var(--text-dim); border:1px solid var(--rule); border-radius:3px; padding:2px 8px;
+    opacity:1; transition:opacity .25s ease, color .25s ease, border-color .25s ease;
+  }
+  .role:hover .tech-tag, .project:hover .tech-tag{ opacity:1; color:var(--accent-warm); border-color:var(--accent-warm); }
+
+  /* PROJECTS */
+  .project{ padding:clamp(1.25rem,3.5vh,2rem) 0; border-bottom:1px solid var(--rule); }
+  .project:last-child{ border-bottom:none; }
+  .project-head{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.5rem 1rem; }
+  .project-title-group{ display:inline-flex; flex-wrap:wrap; align-items:center; gap:.5rem; min-width:0;max-width:100%; }
+  .project-title{ font-family:var(--font-mono); font-size:var(--fs-role); font-weight:600; }
+  .project-dates{ font-family:var(--font-mono); font-size:var(--fs-meta); color:var(--text-dim); white-space:normal; }
+  .project-link{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:40px; height:40px; flex:none; border-radius:50%;
+    border:1px solid var(--rule); color:var(--text-dim);
+    opacity:.6;
+    transition: color .25s ease, border-color .25s ease, opacity .25s ease, background-color .25s ease;
+  }
+  .project:hover .project-link{ opacity:1; color:var(--accent-warm); border-color:var(--accent-warm); }
+  .project-link:hover{ opacity:1; color:var(--accent-warm); border-color:var(--accent-warm); background:rgba(232,150,61,.12); }
+  .project-link:focus-visible{ opacity:1; color:var(--accent-warm); border-color:var(--accent-warm); }
+  .project-link svg{ width:17px; height:17px; }
+
+  /* EDUCATION */
+  .edu-item{ padding:clamp(1rem,3vh,1.75rem) 0; border-bottom:1px solid var(--rule); }
+  .edu-item:last-child{ border-bottom:none; }
+  .edu-head{ display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:.35rem 1rem; }
+  .edu-school{ font-family:var(--font-script); font-weight:600; font-size:var(--fs-school); flex:1 1 16rem; min-width:0;max-width:100%; }
+  .edu-degree{ color:var(--text-dim); font-size:var(--fs-note); margin-top:2px; }
+  .edu-dates{ font-family:var(--font-mono); font-size:var(--fs-meta); color:var(--text-dim); white-space:normal; }
+
+  /* CONTACT */
+  .contact-icons{ display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:clamp(1.5rem,3vh,2rem) var(--contact-gap); margin:1.25rem auto 0; }
+  .contact-icon{
+    position:relative; width:var(--contact-size); height:var(--contact-size); flex:none; padding:0; border-radius:50%;
+    border:1px solid var(--rule); background:transparent; color:var(--text-dim);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    opacity:.55;
+    transition: color .25s ease, border-color .25s ease, opacity .25s ease, background-color .25s ease, transform .15s;
+  }
+  .contact-icons:hover .contact-icon{ opacity:.8; }
+  .contact-icon:hover{ opacity:1; color:var(--accent-warm); border-color:var(--accent-warm); background:rgba(232,150,61,.10); }
+  .contact-icon:focus-visible{ opacity:1; }
+  .contact-icon:active{ transform:scale(0.94); }
+  .contact-icon svg{ width:44%; height:44%; }
+  a.contact-icon:hover{text-decoration:none;}
+  .contact-icon-badge{
+    position:absolute; bottom:2px; right:1px;
+    font-family:var(--font-mono); font-size:clamp(.625rem,.6rem + .04vw,.75rem); font-weight:600; letter-spacing:0.01em;
+    color:inherit; background:var(--bg); padding:0 2px; border-radius:2px; line-height:1.3;
+  }
+  .copied-tip{
+    position:absolute; bottom:-28px; left:50%; transform:translateX(-50%);
+    font-family:var(--font-mono); font-size:var(--fs-tag); color:var(--accent-warm);
+    opacity:0; transition:opacity .2s; white-space:nowrap; pointer-events:none;
+  }
+  .copied-tip.show{ opacity:1; }
+
+
+  /* The model never takes over the screen; content simply slides across it. */
+  html.enhanced, html.enhanced body{overflow:hidden; overscroll-behavior:none;}
+  #pageContent{position:relative;z-index:4;}
+  .section{overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#303640 transparent;}
+  .section:focus{outline:none;}
+  .progress-fill{width:100%;transform:scaleX(0);transform-origin:left;}
+  .section-inner{will-change:auto;}
+  /* em breakpoints also adapt when the reader chooses larger default type.
+     A short viewport uses the bottom rail even when it is wide. */
+  @media(max-width:64em),(max-height:32em){
+    :root{--nav-reserve:calc(var(--nav-hit) + 1.75rem);}
+    .sectionLabels{
+      top:auto;bottom:calc(.75rem + env(safe-area-inset-bottom,0px));
+      right:auto;left:50%;transform:translateX(-50%);
+      width:min(calc(100% - 1rem - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px)),calc(6 * var(--nav-hit) + 5 * var(--nav-gap)));
+      height:var(--nav-hit);flex-direction:row;justify-content:center;gap:var(--nav-gap);padding:0;
+    }
+    .sectionLabels::before{
+      inset:-14px -12px;
+      background:radial-gradient(ellipse at center,rgba(3,5,8,.88),transparent 72%);
+    }
+    .sectionLabels::after{display:none;}
+    .nav-frost span{flex:1 1 0;}
+    .nav-frost span::before{
+      inset:-4px -2px;
+      backdrop-filter:blur(7px) saturate(.8);
+      -webkit-backdrop-filter:blur(7px) saturate(.8);
+    }
+    .sectionLabels button{flex:1 1 0;min-width:0;font-size:0;padding:0;text-shadow:none;}
+    .sectionLabels button::after{right:calc(50% - 3px);top:calc(50% - 3px);width:6px;height:6px;opacity:1;}
+    .sectionLabels button:focus-visible::after{transform:scale(1.5);}
+  }
+  @media(max-width:30em){
+    .contact-icons{max-width:calc(3 * var(--contact-size) + 2 * var(--contact-gap));}
+    .project-head,.edu-head{gap:.35rem .75rem;}
+    .project-link{width:44px;height:44px;}
+  }
+  @media(max-width:22em){
+    :root{--nav-gap:0px;}
+    .timeline{--timeline-indent:.875rem;}
+  }
+  @media(max-height:40em){
+    :root{--space-section:clamp(1.25rem,5vh,2rem);--space-heading:1.25rem;--space-item:1.5rem;}
+  }
+  @media(max-height:26em){
+    :root{--space-section:1rem;--space-heading:.875rem;--space-item:1.125rem;--nav-reserve:calc(var(--nav-hit) + 1.25rem);}
+    .sectionLabels{bottom:calc(.5rem + env(safe-area-inset-bottom,0px));}
+    .idx{margin-bottom:.375rem;}
+    h2{padding-bottom:.5rem;}
+    .project,.edu-item{padding-block:.875rem;}
+  }
+  @media(prefers-reduced-motion:reduce){.sectionLabels button{transition:none;}}
+  /* Reduced motion keeps the fabric, but renders it as a still frame. */
+
+  body::after{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:2;
+    background:radial-gradient(circle at 50% 50%, transparent 0 30%, rgba(0,0,0,.22) 74%, rgba(0,0,0,.58) 100%);
+  }
+  .section-inner{ position:relative; z-index:5; }
+  /* Most of the legibility work now happens in the panel behind the copy, so
+     this only has to take the edge off the rest of the frame. */
+  .readability-scrim{
+    position:fixed; inset:0; z-index:1; pointer-events:none;
+    background:radial-gradient(ellipse 54% 46% at 50% 50%, rgba(0,0,0,.40) 0%, rgba(0,0,0,.22) 52%, rgba(0,0,0,0) 80%);
+  }
+  /* Frosted panel behind each section's text. backdrop-filter blurs a hard
+     rectangle whatever the background paints, so the whole pseudo-element —
+     tint and blur together — is feathered out with a mask. */
+  /* The panel fades itself in. It cannot ride the copy's fade: an ancestor at
+     opacity < 1 forms a backdrop root, which leaves backdrop-filter nothing to
+     blur until the opacity lands exactly on 1 and the blur snaps in. So the
+     transition animates .section-body instead, and .section-inner stays at 1. */
+  .section-inner::before{
+    content:""; position:absolute; inset:calc(-1 * clamp(1.25rem,5vh,3.25rem)) calc(-1 * clamp(1rem,4vw,4rem)); z-index:-1; pointer-events:none;
+    opacity:0; transition:opacity .6s ease .08s;
+    background:rgba(7,9,12,.46);
+    backdrop-filter:blur(9px) saturate(.9);
+    -webkit-backdrop-filter:blur(9px) saturate(.9);
+    -webkit-mask-image:radial-gradient(ellipse 100% 100% at 50% 50%, #000 30%, rgba(0,0,0,.5) 62%, transparent 100%);
+    mask-image:radial-gradient(ellipse 100% 100% at 50% 50%, #000 30%, rgba(0,0,0,.5) 62%, transparent 100%);
+  }
+  .section.is-active .section-inner::before{ opacity:1; }
+  html:not(.enhanced) .section-inner::before{ opacity:1; }
+  @media (prefers-reduced-motion: reduce){ .section-inner::before{ transition:none; } }
+  @media (max-width:40em){
+    .section-inner::before{ inset:-1.25rem -1rem; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+  }
