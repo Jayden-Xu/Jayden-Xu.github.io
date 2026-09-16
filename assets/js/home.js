@@ -19,7 +19,7 @@ let renderer=null, renderFailed=false;
 let pointerStamp=0, glowSprite=null, matrixBase=null, matrixCells=[];
 let cellGlow=null, lastOverlay=0;
 let touchHold=false, touchRelease=0;
-const TOUCH_FADE=1100, POINTER_POWER=1.5;
+const TOUCH_FADE=1500, POINTER_POWER=5;
 // The fabric is lit only by the overlay: a warm pointer halo and the cool
 // matrix cells that flicker on by themselves. Everything else stays dark.
 // Ambient is near zero at rest, so unlit fabric stays invisible. A section
