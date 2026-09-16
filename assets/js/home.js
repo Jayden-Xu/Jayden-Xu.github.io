@@ -33,13 +33,41 @@ const WARM=[1,.68,.36], COOL=[.60,.79,1], MAX_LIGHTS=6;
 let activeCells=[], lights=[];
 // Section anchors are neighboring districts in the same unbounded compute fabric.
 const poses=[
- {target:[0,.55,0],dist:6.2,phi:.80,theta:.30},
- {target:[0,.80,-10],dist:5.7,phi:.70,theta:-.26},
- {target:[0,1.60,-20],dist:6.8,phi:.86,theta:.46},
- {target:[0,.85,-30],dist:5.9,phi:.68,theta:-.38},
- {target:[0,1.15,-40],dist:6.3,phi:.78,theta:.20},
- {target:[0,.75,-50],dist:5.5,phi:.92,theta:-.32}
+ {target:[0,.55,0],dist:6.2,phi:.80,theta:.30},      // home       · radial package
+ {target:[0,.80,-10],dist:5.7,phi:.70,theta:-.26},   // about      · tensor floorplan
+ {target:[0,1.30,-20],dist:6.6,phi:.74,theta:.38},   // signals    · broadcast array
+ {target:[0,1.60,-30],dist:6.8,phi:.86,theta:.46},   // experience · memory stacks
+ {target:[0,.85,-40],dist:5.9,phi:.68,theta:-.38},   // projects   · switch fabric
+ {target:[0,1.15,-50],dist:6.3,phi:.78,theta:.20},   // education  · substrate
+ {target:[0,.75,-60],dist:5.5,phi:.92,theta:-.32}    // contact    · I/O portals
 ];
+// Close-up poses. A section pose frames a whole district from outside; these
+// park the camera inside one, on the single component an entry is filed under.
+// An entry names one with data-focus; anything unnamed falls back to a dive
+// straight down onto the middle of its own district.
+const focusPoses={
+ // Two things make these close-ups read as a focus rather than a step nearer:
+ // the camera ends much closer than a section pose, and the lens goes long
+ // (a narrow fov magnifies and flattens, the way racking in on a subject does).
+ // broadcast array (z=-20): the mast and the dipoles on the outer wavefront
+ 'signal-mast':{target:[0,1.55,-20],dist:2.60,phi:.86,theta:.26,fov:.52},
+ 'signal-dipole':{target:[4.05,.62,-18.9],dist:2.30,phi:.94,theta:.78,fov:.54},
+ // memory district (z=-30): the stacks
+ 'mem-stack-core':{target:[0,1.08,-30],dist:2.50,phi:.94,theta:.34,fov:.52},
+ 'mem-stack-west':{target:[-2.5,.70,-32.1],dist:2.40,phi:1.00,theta:-.52,fov:.52},
+ 'mem-stack-east':{target:[2.5,.86,-32.1],dist:2.40,phi:.98,theta:.62,fov:.52},
+ // switch fabric (z=-40): the crossbar and its four port islands
+ 'switch-core':{target:[0,.82,-40],dist:2.30,phi:.82,theta:.16,fov:.52},
+ 'switch-arm-east':{target:[2.55,.58,-40],dist:2.40,phi:.86,theta:.72,fov:.54},
+ 'switch-arm-north':{target:[0,.58,-43.1],dist:2.40,phi:.86,theta:.08,fov:.54},
+ // radial package (z=0) and tensor floorplan (z=-10), for entries filed there
+ 'package-die':{target:[0,.74,0],dist:2.40,phi:.80,theta:.30,fov:.52},
+ 'tensor-chiplet':{target:[2.18,.60,-12.18],dist:2.40,phi:.88,theta:.50,fov:.52}
+};
+const ZOOM_IN=1300, ZOOM_OUT=1000, DETAIL_DRIFT=.24;
+// The flight and the panel are two states, never both: zoom holds the camera
+// while it travels, detail holds it once it has arrived.
+let zoom=null, detail=null;
 
 // Screen-space line segments: real 3D edges with a consistent, antialiased width.
 // No solid faces, image textures, component labels, or component-specific colors.
@@ -146,7 +174,24 @@ function createPackage(canvas){
     if(detailed)for(let r=-1;r<=1;r++)for(let c=-1;c<=1;c++)ring(px+c*.43,h-.03,pz+r*.43,.30,.30,.38);
    }
    for(const side of [-1,1])for(let k=0;k<(detailed?8:2);k++){const q=side*(1.01+k*.025);line([x+q,.03,z-3.7],[x+q,.03,z+3.7],.45);line([x-3.7,.03,z+q],[x+3.7,.03,z+q],.45);}
-  }else if(kind===2){ // Memory: tall stacks, staggered terraces and vertical vias.
+  }else if(kind===2){ // Broadcast array: a mast over concentric wavefronts, dipoles standing on the rim.
+   const levels=detailed?5:3,SIDES=12,rings=[];
+   for(let j=0;j<levels;j++)rings.push(polygon(x,.02+j*.05,z,1.35+j*(detailed?.72:1.2),SIDES,j?.42:.62,Math.PI/SIDES));
+   // Radial ribs tie the wavefronts together — visually, and for the flow field,
+   // which can only travel along geometry that actually meets.
+   for(let j=1;j<rings.length;j++)for(let k=0;k<SIDES;k++)line(rings[j-1][k],rings[j][k],k%3?.26:.50);
+   for(let k=0;k<SIDES;k+=2)line([x,.05,z],rings[0][k],.38);
+   cage(x,0,z,.62,2.15,.62,.80);
+   const bands=detailed?9:3;for(let j=1;j<bands;j++)ring(x,j*2.15/bands,z,.62,.62,.34);
+   const crown=polygon(x,2.18,z,.95,8,.85,Math.PI/8),collar=polygon(x,1.55,z,.44,8,.58,Math.PI/8);
+   for(let k=0;k<8;k++)line(crown[k],collar[k],.50);
+   const outer=rings[rings.length-1];
+   for(let k=0;k<SIDES;k+=detailed?2:4){
+    const q=outer[k];
+    line(q,[q[0],q[1]+.85,q[2]],.62);ring(q[0],q[1]+.85,q[2],.34,.34,.45);
+    if(detailed)line([q[0],q[1]+.85,q[2]],[q[0],q[1]+1.25,q[2]],.40);
+   }
+  }else if(kind===3){ // Memory: tall stacks, staggered terraces and vertical vias.
    const sites=[[0,0,2.10],[-2.50,-2.1,1.35],[2.5,-2.1,1.68],[-2.5,2.1,.95],[2.5,2.1,1.32]];
    for(const [dx,dz,h]of sites){const px=x+dx,pz=z+dz;cage(px,-.02,pz,1.85,h,2.25,.82);
     const count=detailed?10:3;for(let j=1;j<count;j++)ring(px,h*j/count-.02,pz,1.85,2.25,.45);
@@ -154,7 +199,7 @@ function createPackage(canvas){
     if(detailed)for(let k=1;k<7;k++){const q=-.87+k*.25;line([px+q,0,pz-1.125],[px+q,h,pz-1.125],.35);}
    }
    if(detailed)for(let k=0;k<12;k++){const q=(k-5.5)*.12;line([x+q,-.08,z-4],[x+q,-.08,z+4],.35);}
-  }else if(kind===3){ // Switch fabric: crossing bridges, diagonal routes and port islands.
+  }else if(kind===4){ // Switch fabric: crossing bridges, diagonal routes and port islands.
    cage(x,.22,z,2.50,.55,2.5,.85);polygon(x,.79,z,1.06,8,.76);grid(x,.8,z,1.20,1.20,detailed?8:3,.36);
    for(let arm=0;arm<4;arm++){
     const a=arm*Math.PI/2,dx=Math.cos(a),dz=Math.sin(a),nx=-dz,nz=dx;
@@ -166,7 +211,7 @@ function createPackage(canvas){
     }
     if(detailed)grid(x+dx*3.1,.49,z+dz*3.1,1.16,1.16,5,.34);
    }
-  }else if(kind===4){ // Substrate: terraced routing layers, ribs and through-layer channels.
+  }else if(kind===5){ // Substrate: terraced routing layers, ribs and through-layer channels.
    const n=detailed?8:4;
    for(let j=0;j<n;j++){const h=j*.15,w=7-j*.48;ring(x,h,z,w,w,.66);if(detailed)for(let k=1;k<10;k++){const q=-w/2+k*w/10;line([x+q,h,z-w/2],[x+q,h,z+w/2],.25);}}
    for(const dx of [-1.32,1.32])for(const dz of [-1.32,1.32]){cage(x+dx,0,z+dz,.46,1.5,.46,.76);if(detailed)for(let j=1;j<8;j++)ring(x+dx,j*.18,z+dz,.46,.46,.4);}
@@ -184,11 +229,12 @@ function createPackage(canvas){
    if(detailed)for(let k=0;k<16;k++){const q=(k-7.5)*.12;line([x+q,.08,z+3.5],[x+q,.08,z-3.5],.42);}
   }
  }
- // Six distinct detailed landmarks; surrounding low-detail districts continue
- // the landscape past the view frustum without repeating one identical tile.
+ // Seven distinct detailed landmarks, one per section; surrounding low-detail
+ // districts continue the landscape past the view frustum without repeating
+ // one identical tile.
  for(let row=-9;row<=4;row++)for(let col=-4;col<=4;col++){
-  const kind=((-row+col*2)%6+6)%6;
-  tagKind=kind;tagOx=col*10;tagOz=row*10;tagDetail=col===0&&row<=0&&row>=-5;
+  const kind=((-row+col*2)%7+7)%7;
+  tagKind=kind;tagOx=col*10;tagOz=row*10;tagDetail=col===0&&row<=0&&row>=-6;
   district(kind,col*10,row*10,tagDetail);
   for(const side of [-1,1]){
    line([col*10-5,-.2,row*10+side*4.8],[col*10+5,-.2,row*10+side*4.8],.30);
@@ -286,7 +332,7 @@ function createPackage(canvas){
   });
   return {pts,fields,hash,memo:new Map()};
  }
- const fields=[0,1,2,3,4,5].map(buildField);
+ const fields=[0,1,2,3,4,5,6].map(buildField);
  // Segments share endpoints heavily, so the same local point is asked for many
  // times over; memoising turns most of ~40k lookups into a map hit.
  const lookupBuf=[];
@@ -366,25 +412,45 @@ function createPackage(canvas){
 // across it while the text panels slide past — no full-screen takeover.
 const DURATION=900, OUT_END=240, IN_START=330, IN_END=860;
 function blendPose(a,b,t){
- return {target:vMix(a.target,b.target,t),distance:mix(a.dist,b.dist,t),theta:mix(a.theta,b.theta,t),phi:mix(a.phi,b.phi,t),fov:.69};
+ return {target:vMix(a.target,b.target,t),distance:mix(a.dist,b.dist,t),theta:mix(a.theta,b.theta,t),phi:mix(a.phi,b.phi,t),fov:mix(a.fov||.69,b.fov||.69,t)};
 }
 // Drift is added on top of whatever base pose is active, so resuming the idle
 // sway at the end of a flight produces no jump.
-function applyDrift(p,now){
+// Up close the same sway would swing the camera through the structure, so the
+// amplitude scales with how far in the flight has travelled.
+function applyDrift(p,now,k=1){
  if(motion.matches)return p;
  const t=now/1000;
- p.target=[p.target[0]+Math.sin(t*.13)*.30,p.target[1]+Math.sin(t*.09)*.10,p.target[2]+Math.cos(t*.11)*.26];
- p.theta+=Math.sin(t*.062)*.09;p.phi+=Math.sin(t*.051)*.022;p.distance+=Math.sin(t*.073)*.12;
+ p.target=[p.target[0]+Math.sin(t*.13)*.30*k,p.target[1]+Math.sin(t*.09)*.10*k,p.target[2]+Math.cos(t*.11)*.26*k];
+ p.theta+=Math.sin(t*.062)*.09*k;p.phi+=Math.sin(t*.051)*.022*k;p.distance+=Math.sin(t*.073)*.12*k;
  return p;
 }
 function cameraPose(now){
- let p;
- if(transition){
+ let p,drift=1;
+ if(zoom){
+  // The flight is shaped, not linear: it first pulls back off the district —
+  // winding up — then rushes past the resting distance before settling on it.
+  // `swing` is one full sine over the flight, so it is +back, then -in, and
+  // exactly zero at both ends. The lens widens through the middle and closes
+  // to its long setting on arrival, which is what sells the focus.
+  const span=zoom.dir==='in'?ZOOM_IN:ZOOM_OUT;
+  const u=smooth(clamp((now-zoom.start)/span)),k=zoom.dir==='in'?u:1-u;
+  const arc=Math.sin(Math.PI*u),swing=Math.sin(2*Math.PI*u);
+  p=blendPose(poses[current],zoom.pose,k);
+  // The wind-up is bigger than the overshoot on purpose: pulling far back
+  // reads as travel, while rushing too far in would put the camera inside the
+  // component and cull the very lines it is meant to be looking at.
+  p.distance=Math.max(1.05,p.distance+swing*(swing>0?2.40:1.10));
+  p.fov+=arc*.34;p.theta+=arc*.30*(zoom.dir==='in'?1:-1);
+  drift=mix(1,DETAIL_DRIFT,k);
+ }else if(detail){
+  p=blendPose(detail.pose,detail.pose,0);drift=DETAIL_DRIFT;
+ }else if(transition){
   const u=smooth(clamp((now-transition.start)/DURATION)),arc=Math.sin(Math.PI*u);
   p=blendPose(poses[transition.from],poses[transition.to],u);
   p.distance+=arc*2.9;p.phi+=arc*.10;
  }else p=blendPose(poses[current],poses[current],0);
- return applyDrift(p,now);
+ return applyDrift(p,now,drift);
 }
 // A finger is a light too, but it leaves the glass; after release the halo
 // lingers and fades instead of snapping off.
@@ -413,6 +479,8 @@ function sceneLights(now){
 // Exposure: full through the flight, then a slow decay measured from the
 // moment the transition ended, so the fabric sinks back into the dark.
 function revealAmount(now){
+ // Nothing is reading over the fabric during a dive, so it stays fully lit.
+ if(zoom||detail)return 1;
  if(transition)return smooth(clamp((now-transition.start)/REVEAL_IN));
  if(!lastEnd)return 0;
  const q=(now-lastEnd)/REVEAL_OUT;
@@ -441,6 +509,14 @@ function retireFlight(f,now,taken){
 }
 // The navigation front stays in screen space: it belongs to the page turn.
 function sceneSweep(now){
+ if(zoom){
+  // Same band of light, read as speed rather than as a page turn.
+  const span=zoom.dir==='in'?ZOOM_IN:ZOOM_OUT,t=clamp((now-zoom.start)/span),forward=zoom.dir==='in';
+  const reach=W+H,pad=520;
+  return {kind:'warp',t,forward,amp:.42,tint:FRONT_TINT,
+   head:(forward?t:1-t)*(reach+pad*2)-pad,width:360,
+   gain:Math.sin(Math.PI*t)*2.0};
+ }
  if(!transition)return null;
  const t=clamp((now-transition.start)/DURATION),forward=transition.forward;
  const span=W+H,pad=460;
@@ -492,7 +568,7 @@ function finish(){
  ensureFrame();
 }
 function go(index,historyMode=true){
- index=clamp(index,0,sections.length-1);if(index===current||transition)return;
+ index=clamp(index,0,sections.length-1);if(index===current||transition||zoom||detail)return;
  const from=current;current=index;
  if(historyMode)history.replaceState(null,'','#'+sections[current].id);
  labels();
@@ -635,7 +711,7 @@ function drawOverlay(now,sweep){
   }
   bgc.globalAlpha=1;
  }
- if(sweep)drawPulse(bgc,sweep.t,sweep.amp,sweep.forward);
+ if(sweep&&sweep.kind==='warp')drawWarp(bgc,sweep);else if(sweep)drawPulse(bgc,sweep.t,sweep.amp,sweep.forward);
  if(pointer&&power>0){
   bgc.globalAlpha=power;bgc.drawImage(glowSprite,pointer.x-160,pointer.y-160);
   const col=Math.floor(pointer.x/30),row=Math.floor(pointer.y/30);
@@ -647,6 +723,28 @@ function drawOverlay(now,sweep){
   bgc.globalAlpha=1;
  }
 }
+// The dive's own overlay: the same matrix cells, streaming out past the lens
+// (or back in on the way out) instead of crossing the screen on a diagonal.
+const WARP_RAYS=34, WARP_CELLS=7;
+function drawWarp(ctx,s){
+ const t=clamp(s.t),env=Math.sin(Math.PI*t);
+ if(env<=.02)return;
+ const cx=W/2,cy=H/2,reach=Math.hypot(W,H)*.60;
+ for(let i=0;i<WARP_RAYS;i++){
+  const a=i*2.39996,ca=Math.cos(a),sa=Math.sin(a),seed=(i*67%23)/23;
+  for(let j=0;j<WARP_CELLS;j++){
+   let q=(t*1.4+seed*.4+j/WARP_CELLS)%1;if(!s.forward)q=1-q;
+   const d=60+q*reach*(.45+seed*.7),g=env*(1-Math.abs(q*2-1))*(.55+seed*.45);
+   if(g<.04)continue;
+   const size=5+d/reach*20,x=cx+ca*d,y=cy+sa*d*.88;
+   if(x<-size||y<-size||x>W+size||y>H+size)continue;
+   ctx.globalAlpha=Math.min(.55,g*.5);
+   ctx.fillStyle=(i+j)%3?'#9cb6cc':'#e8a052';
+   ctx.fillRect(x-size/2,y-size/2,size,size);
+  }
+ }
+ ctx.globalAlpha=1;
+}
 function drawScene(now){
  const sweep=sceneSweep(now),pulses=scenePulses(now);
  document.body.dataset.heartbeat=transition?'navigating':pulses?'flowing':'off';
@@ -657,9 +755,12 @@ function drawScene(now){
 function frame(now){
  raf=0;if(document.hidden)return;
  if(transition)stepTransition(now);
- const budget=transition?0:(now-pointerStamp<120?12:W<=900?48:32);
+ if(zoom)stepZoom(now);
+ const budget=transition||zoom?0:(now-pointerStamp<120?12:W<=900?48:32);
  if(motion.matches||now-lastBg>=budget){drawScene(now);lastBg=now;}
- if(transition||!motion.matches||revealAmount(now)>0||pointerPower(now)>0)ensureFrame();
+ // An open close-up holds the exposure at full, so it cannot be what keeps
+ // the loop alive — otherwise reduced motion would never come to rest.
+ if(transition||zoom||!motion.matches||(!detail&&revealAmount(now)>0)||pointerPower(now)>0)ensureFrame();
 }
 function ensureFrame(){if(!raf&&!document.hidden)raf=requestAnimationFrame(frame);}
 function resize(){
@@ -673,6 +774,7 @@ function editable(el){return el&&!!el.closest('input,textarea,select,[contentedi
 function atEdge(down){const s=sections[current];return down?s.scrollHeight-s.scrollTop-s.clientHeight<2:s.scrollTop<2;}
 window.addEventListener('wheel',e=>{
  if(e.ctrlKey)return; // Preserve browser pinch-to-zoom.
+ if(zoom||detail)return; // The open close-up scrolls itself.
  const now=performance.now(),gap=now-lastWheel;lastWheel=now;
  if(transition){e.preventDefault();wheelSum=0;return;}
  if(Math.abs(e.deltaY)<=Math.abs(e.deltaX))return;
@@ -683,14 +785,16 @@ window.addEventListener('wheel',e=>{
  if(Math.abs(wheelSum)>=45){go(current+(down?1:-1));wheelSum=0;}
 },{passive:false});
 window.addEventListener('touchstart',e=>{
+ if(zoom||detail){touch=null;return;}
  if(e.touches.length!==1){touch=null;return;}const t=e.touches[0];touch={x:t.clientX,y:t.clientY,scroll:sections[current].scrollTop,edgeUp:atEdge(false),edgeDown:atEdge(true),blocked:!!transition};
 },{passive:true});
 window.addEventListener('touchmove',e=>{
+ if(zoom||detail)return;
  if(e.touches.length!==1){touch=null;return;}if(!touch)return;
  const d=touch.y-e.touches[0].clientY;if(transition||(Math.abs(d)>8&&atEdge(d>0)))e.preventDefault();
 },{passive:false});
 window.addEventListener('touchend',e=>{
- if(!touch)return;const t=touch;touch=null;if(transition||t.blocked)return;
+ if(!touch)return;const t=touch;touch=null;if(transition||zoom||detail||t.blocked)return;
  const dy=t.y-e.changedTouches[0].clientY,dx=t.x-e.changedTouches[0].clientX;
  if(Math.abs(dy)<55||Math.abs(dy)<Math.abs(dx)||Math.abs(sections[current].scrollTop-t.scroll)>3)return;
  if(dy>0?t.edgeDown:t.edgeUp)go(current+(dy>0?1:-1));
@@ -711,6 +815,8 @@ window.addEventListener('touchmove',e=>carryLight(e,true),{passive:true});
 window.addEventListener('touchend',e=>carryLight(e,false),{passive:true});
 window.addEventListener('touchcancel',e=>carryLight(e,false),{passive:true});
 window.addEventListener('keydown',e=>{
+ if(e.key==='Escape'&&(zoom||detail)){e.preventDefault();if(detail)closeDetail();return;}
+ if(zoom||detail)return;
  if(e.key==='Escape'&&transition){e.preventDefault();finish();return;}
  if(editable(e.target))return;
  const down=['ArrowDown','PageDown',' '].includes(e.key)&&!e.shiftKey,up=['ArrowUp','PageUp'].includes(e.key)||(e.key===' '&&e.shiftKey);
@@ -720,7 +826,12 @@ window.addEventListener('keydown',e=>{
  go(current+(down?1:-1));
 });
 buttons.forEach((b,i)=>{
- b.addEventListener('click',()=>{wakeNavMatrix(i);go(i);});
+ b.addEventListener('click',()=>{
+  wakeNavMatrix(i);
+  if(zoom)return; // mid-flight: let it land first
+  if(detail){if(i!==current)closeDetail(()=>go(i));else closeDetail();return;}
+  go(i);
+ });
  b.addEventListener('pointerenter',e=>{if(e.pointerType!=='touch'){navHover=i;wakeNavMatrix(i);}});
  b.addEventListener('pointerleave',()=>{if(navHover===i)navHover=-1;lastBg=0;ensureFrame();});
  b.addEventListener('focus',()=>{navFocus=i;wakeNavMatrix(i);});
@@ -728,7 +839,7 @@ buttons.forEach((b,i)=>{
 });
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(resizeNavMatrix).observe(nav);
 else if(document.fonts)document.fonts.ready.then(resizeNavMatrix);
-window.addEventListener('hashchange',()=>{const i=sections.findIndex(s=>s.id===location.hash.slice(1));if(i>=0){if(transition)finish();go(i,false);}});
+window.addEventListener('hashchange',()=>{if(zoom||detail)return;const i=sections.findIndex(s=>s.id===location.hash.slice(1));if(i>=0){if(transition)finish();go(i,false);}});
 function queueResize(){
  if(!resizeFrame)resizeFrame=requestAnimationFrame(()=>{resizeFrame=0;resize();});
 }
@@ -746,6 +857,105 @@ function copyText(text){
 document.querySelectorAll('.contact-icon[data-copy]').forEach(b=>b.addEventListener('click',()=>{
  copyText(b.dataset.copy).then(()=>{const tip=b.querySelector('.copied-tip');tip.textContent='Copied!';tip.classList.add('show');setTimeout(()=>tip.classList.remove('show'),1200);}).catch(()=>{const tip=b.querySelector('.copied-tip');tip.textContent=b.dataset.copy;tip.classList.add('show');});
 }));
+// ---- entry close-ups ------------------------------------------------------
+// Inspect flies the camera from the district a section is parked on down onto
+// the single component that entry is filed under; the page copy steps aside on
+// the way, and the entry's long form is read against that close-up. Zoom out
+// runs exactly the same flight backwards.
+const root=document.documentElement;
+const detailLayer=$('#detailLayer');
+const detailTitle=$('#detailTitle'),detailMeta=$('#detailMeta'),detailBody=$('#detailBody');
+const detailLinks=$('#detailLinks'),detailClose=$('#detailClose');
+// An entry with no named focus dives straight down onto its own district.
+function fallbackFocus(){
+ const b=poses[current];
+ return {target:[b.target[0],b.target[1]+.25,b.target[2]],dist:b.dist*.38,phi:b.phi,theta:b.theta+.22,fov:.54};
+}
+function instant(){return motion.matches||!renderer||renderFailed;}
+function openDetail(trigger){
+ if(zoom||detail||transition)return;
+ const entry=trigger.closest('.role,.project'),src=entry&&entry.querySelector('.entry-detail');
+ if(!src)return;
+ const pose=focusPoses[entry.dataset.focus]||fallbackFocus();
+ const heading=entry.querySelector('.role-title,.project-title');
+ detailTitle.textContent=trigger.dataset.title||(heading?heading.textContent.trim():'');
+ detailMeta.textContent=trigger.dataset.meta||'';
+ detailBody.innerHTML=src.innerHTML;
+ // Links belong beside the title, as icons: appendChild moves each one out of
+ // the body it was authored in, and its label survives as the accessible name.
+ detailLinks.replaceChildren();
+ detailBody.querySelectorAll('.detail-link').forEach(a=>{
+  const label=a.querySelector('span');
+  if(label){a.setAttribute('aria-label',label.textContent.trim());a.title=label.textContent.trim();label.remove();}
+  detailLinks.appendChild(a);
+ });
+ detailBody.scrollTop=0;detailLayer.hidden=false;
+ // The rail stays live while a close-up is open — only the copy behind the
+ // panel goes inert, so nothing invisible can be tabbed into.
+ sections[current].inert=true;sections[current].setAttribute('aria-hidden','true');
+ root.classList.add('detail-open');
+ document.body.dataset.heartbeat='off';
+ if(instant()){detail={entry,pose,trigger};showPanel();lastBg=0;ensureFrame();return;}
+ zoom={dir:'in',start:performance.now(),pose,entry,trigger};
+ lastBg=0;ensureFrame();
+}
+function showPanel(){
+ detailLayer.classList.add('is-open');
+ document.body.dataset.phase='detail';
+ // The body is the scroll container, so focusing it (not the button) is what
+ // lets a keyboard read the long form.
+ (detailBody||detailClose).focus({preventScroll:true});
+}
+// `then` is what the rail hands over: surface first, then fly to the section
+// that was asked for.
+function closeDetail(then){
+ if(!detail||zoom)return;
+ const d=detail;detail=null;
+ detailLayer.classList.remove('is-open');
+ if(instant()){surface(d.trigger,then);return;}
+ zoom={dir:'out',start:performance.now(),pose:d.pose,entry:d.entry,trigger:d.trigger,then};
+ lastBg=0;ensureFrame();
+}
+function surface(trigger,then){
+ root.classList.remove('detail-open');
+ detailLayer.hidden=true;
+ labels(); // restores each section's own inert state
+ document.body.dataset.phase='content';
+ document.body.dataset.heartbeat=motion.matches?'off':'waiting';
+ lastEnd=performance.now();lastBg=0;ensureFrame();
+ // A hand-off moves focus itself; only a plain close returns it to the entry.
+ if(then)then();else if(trigger)trigger.focus({preventScroll:true});
+}
+function stepZoom(now){
+ const z=zoom,span=z.dir==='in'?ZOOM_IN:ZOOM_OUT,t=now-z.start;
+ document.body.dataset.phase=z.dir==='in'?'dive':'surface';
+ // Outbound, the copy starts coming back before the camera lands, so the page
+ // is already in place the moment the flight stops.
+ if(z.dir==='out'&&!z.restored&&t>span*.55){z.restored=true;root.classList.remove('detail-open');}
+ if(t<span)return;
+ zoom=null;
+ if(z.dir==='in'){detail={entry:z.entry,pose:z.pose,trigger:z.trigger};showPanel();lastBg=0;ensureFrame();}
+ else surface(z.trigger,z.then);
+}
+document.querySelectorAll('.entry-more').forEach(b=>b.addEventListener('click',()=>openDetail(b)));
+// The whole entry is the hit area. Links and the control itself keep their own
+// behaviour, and a click that ends a text selection is a selection, not a dive.
+document.querySelectorAll('.role,.project').forEach(entry=>{
+ const button=entry.querySelector('.entry-more');
+ if(!button||!entry.querySelector('.entry-detail'))return;
+ entry.classList.add('is-inspectable');
+ let downX=0,downY=0;
+ entry.addEventListener('pointerdown',e=>{downX=e.clientX;downY=e.clientY;},{passive:true});
+ entry.addEventListener('click',e=>{
+  if(e.target.closest('a,button,input,textarea,select'))return;
+  if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)return; // a drag, not a tap
+  const picked=getSelection&&getSelection();
+  if(picked&&!picked.isCollapsed&&picked.toString().trim())return;
+  openDetail(button);
+ });
+});
+if(detailClose)detailClose.addEventListener('click',()=>closeDetail());
+
 sections.forEach(s=>s.tabIndex=-1);
 try{renderer=createPackage($('#packageCanvas'));}catch(e){renderFailed=true;console.warn('Compute renderer unavailable; using direct section navigation.',e);}
 // Warm the shader before the first frame so the fabric is there on load.
