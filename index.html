@@ -381,7 +381,7 @@
       <div class="section-body">
         <span class="idx">02</span>
         <h2>About</h2>
-        <p class="about-text">I'm drawn to the layer where algorithms meet hardware — the layer that decides whether a model that works on paper actually runs fast in production. Most of my time goes into <span class="about-highlight">Inference and Training Infra</span>.</p>
+        <p class="about-text">I'm drawn to the layer where algorithms meet hardware — the layer that decides whether a model that works on paper actually runs fast in production. Most of my time goes into <span class="about-highlight">Inference Infra</span>, with a growing pull toward <span class="about-highlight">Training Infra</span> too.</p>
         <p class="about-text">I believe algorithms decide what a model is capable of — <span class="about-highlight">infra decides how far it can actually go.</span></p>
       </div>
     </div>
@@ -1255,7 +1255,7 @@ function copyText(text){
 document.querySelectorAll('.contact-icon[data-copy]').forEach(b=>b.addEventListener('click',()=>{
  copyText(b.dataset.copy).then(()=>{const tip=b.querySelector('.copied-tip');tip.textContent='Copied!';tip.classList.add('show');setTimeout(()=>tip.classList.remove('show'),1200);}).catch(()=>{const tip=b.querySelector('.copied-tip');tip.textContent=b.dataset.copy;tip.classList.add('show');});
 }));
-const slogan=$('#typedSlogan'),sloganText='Optimization is the key.';let typed=0;
+const slogan=$('#typedSlogan'),sloganText='I make large models run in production.';let typed=0;
 function typeNext(){if(motion.matches){slogan.textContent=sloganText;return;}slogan.textContent=sloganText.slice(0,typed++);if(typed<=sloganText.length)setTimeout(typeNext,55);}
 typeNext();
 sections.forEach(s=>s.tabIndex=-1);
