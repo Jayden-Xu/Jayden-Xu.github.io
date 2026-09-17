@@ -12,7 +12,13 @@ const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 const mix=(a,b,t)=>a+(b-a)*t;
 const smooth=t=>t*t*t*(t*(t*6-15)+10); // C2 continuous: no velocity/acceleration jumps at camera boundaries.
 const vMix=(a,b,t)=>a.map((v,i)=>mix(v,b[i],t));
-let current=Math.max(0,sections.findIndex(s=>s.id===location.hash.slice(1)));
+// A cold start always opens on Home. Nothing writes the hash any more, so one
+// arriving at load is leftover state - an old saved link, or a session an
+// in-app browser restored - and not a destination anyone asked for. index.html
+// strips it before paint; this is the same decision stated where it is read, so
+// the two cannot drift apart. Deep links within the page keep working: an anchor
+// changes the hash while the page is live, and the hashchange handler routes it.
+let current=0;
 let transition=null, raf=0, lastBg=0, W=innerWidth,H=innerHeight,overlayDpr=1,resizeFrame=0;
 let lastWheel=0,wheelSum=0, wheelTime=0, lastEnd=0, touch=null, pointer=null;
 let renderer=null, renderFailed=false;
@@ -72,7 +78,7 @@ const focusPoses={
 const ZOOM_IN=1500, ZOOM_OUT=1150, DETAIL_DRIFT=.24;
 // The flight and the panel are two states, never both: zoom holds the camera
 // while it travels, detail holds it once it has arrived.
-let zoom=null, detail=null;
+let zoom=null, detail=null, intro=null;
 // A trapezoid velocity profile: the rate climbs over the first RAMP of the
 // move, holds flat through the middle, and falls over the last RAMP. Paired
 // with the geometric distance blend this is an genuinely even zoom — the same
@@ -91,6 +97,24 @@ const rush=t=>{
 // the streaks, the flare, the light band — is driven by this rather than by
 // position, so they hold steady exactly while the camera is at full rate.
 const surge=t=>{t=clamp(t);return t<RAMP?t/RAMP:t>1-RAMP?(1-t)/RAMP:1;};
+// Arrival. The camera is parked off the district grid entirely and flies onto
+// the home pose, so the first thing the page does is put its own subject in
+// frame. It rides rush() like every other flight, which is what keeps it from
+// reading as a separate intro bolted on the front: same velocity profile, same
+// geometric distance blend, zero velocity at the landing.
+const INTRO_SPAN=1000;
+const INTRO_POSE={target:[0,.55,0],dist:14,phi:.62,theta:-.90,fov:.82};
+// Nothing is gated on this. The copy is readable from the first frame and the
+// rail is live throughout; anything the reader does simply takes the camera
+// over, because every other branch of cameraPose outranks this one.
+function endIntro(){
+ if(!intro)return;
+ intro=null;
+ // Hands the exposure to the ordinary post-arrival decay at exactly the value
+ // the intro was holding, so the fabric sinks into the dark on the same ramp
+ // it would after any section change.
+ lastEnd=performance.now();lastBg=0;
+}
 // The one number the whole close-up runs on: 0 is the page, 1 is the close-up.
 // The camera, the page copy, the panel and the streaks all read this same
 // value, which is what keeps them from arriving in stages.
@@ -507,6 +531,12 @@ function cameraPose(now){
   const u=smooth(clamp((now-transition.start)/DURATION)),arc=Math.sin(Math.PI*u);
   p=blendPose(poses[transition.from],poses[transition.to],u);
   p.distance+=arc*2.9;p.phi+=arc*.10;
+ }else if(intro){
+  p=blendPose(INTRO_POSE,poses[current],rush(clamp((now-intro.start)/INTRO_SPAN)));
+  // The idle sway arrives with the camera instead of waiting for it. At full
+  // amplitude from the first frame it would read as wobble in the approach
+  // rather than as the fabric breathing once it has settled.
+  drift=clamp((now-intro.start)/INTRO_SPAN);
  }else p=blendPose(poses[current],poses[current],0);
  return applyDrift(p,now,drift);
 }
@@ -540,6 +570,7 @@ function revealAmount(now){
  // Nothing is reading over the fabric during a dive, so it stays fully lit.
  if(zoom||detail)return 1;
  if(transition)return smooth(clamp((now-transition.start)/REVEAL_IN));
+ if(intro)return smooth(clamp((now-intro.start)/REVEAL_IN));
  if(!lastEnd)return 0;
  const q=(now-lastEnd)/REVEAL_OUT;
  return q>=1?0:1-smooth(q);
@@ -576,6 +607,12 @@ function sceneSweep(now){
   return {kind:'warp',t,v,forward,tint:FRONT_TINT,
    head:(forward?t:1-t)*(reach+pad*2)-pad,width:420,
    gain:v*.85};
+ }
+ if(intro){
+  const t=clamp((now-intro.start)/INTRO_SPAN),span=W+H,pad=460;
+  return {kind:'front',t,forward:true,amp:.34,tint:FRONT_TINT,
+   head:t*(span+pad*2)-pad,width:250,
+   gain:Math.min(1,t*10,(1-t)*10)*1.7};
  }
  if(!transition)return null;
  const t=clamp((now-transition.start)/DURATION),forward=transition.forward;
@@ -624,13 +661,15 @@ function finish(){
  clearFeature(tr.outEl);clearFeature(tr.inEl);
  content.inert=false;snap();labels();
  sections[current].focus({preventScroll:true});lastEnd=performance.now();lastBg=0;
- document.body.dataset.phase='content';document.body.dataset.heartbeat=motion.matches?'off':'waiting';
  ensureFrame();
 }
-function go(index,historyMode=true){
+// The URL is deliberately left alone. A hash written here would describe a
+// position that a cold load no longer honours, which is how a copied link comes
+// to promise a section and deliver Home. The address bar stays on the bare page.
+function go(index){
  index=clamp(index,0,sections.length-1);if(index===current||transition||zoom||detail)return;
+ endIntro();
  const from=current;current=index;
- if(historyMode)history.replaceState(null,'','#'+sections[current].id);
  labels();
  if(motion.matches||!renderer||renderFailed){snap();sections[current].focus({preventScroll:true});lastBg=0;ensureFrame();return;}
  const forward=index>from;
@@ -639,7 +678,7 @@ function go(index,historyMode=true){
  outEl.style.willChange='transform';inEl.style.willChange='transform';
  bodyOf(outEl).style.willChange='opacity';bodyOf(inEl).style.willChange='opacity';
  slideFeature(inEl,forward?transition.shift:-transition.shift,0);
- content.inert=true;document.body.dataset.heartbeat='off';
+ content.inert=true;
  ensureFrame();
 }
 // Straight vertical hand-off: the old panel travels out the way the scroll is
@@ -653,7 +692,6 @@ function stepTransition(now){
   const u=smooth(clamp((t-IN_START)/(IN_END-IN_START)));
   slideFeature(tr.inEl,-dir*tr.shift*(1-u),u);
  }
- document.body.dataset.phase=t<OUT_END?'exit':t<IN_START?'travel':'enter';
  if(t>=DURATION)finish();
 }
 
@@ -789,7 +827,6 @@ function drawOverlay(now,sweep){
 }
 function drawScene(now){
  const sweep=sceneSweep(now),pulses=scenePulses(now);
- document.body.dataset.heartbeat=transition?'navigating':pulses?'flowing':'off';
  drawOverlay(now,sweep);drawNavMatrix(now);
  const reveal=revealAmount(now);
  const exposure=AMBIENT+REVEAL*reveal+DIVE_EXPOSURE*zoomAmount(now);
@@ -799,12 +836,13 @@ function frame(now){
  raf=0;if(document.hidden)return;
  if(transition)stepTransition(now);
  if(zoom)stepZoom(now);
+ if(intro&&now-intro.start>=INTRO_SPAN)endIntro();
  publishZoom(now);
  const budget=transition||zoom?0:(now-pointerStamp<120?12:W<=900?48:32);
  if(motion.matches||now-lastBg>=budget){drawScene(now);lastBg=now;}
  // An open close-up holds the exposure at full, so it cannot be what keeps
  // the loop alive — otherwise reduced motion would never come to rest.
- if(transition||zoom||!motion.matches||(!detail&&revealAmount(now)>0)||pointerPower(now)>0)ensureFrame();
+ if(intro||transition||zoom||!motion.matches||(!detail&&revealAmount(now)>0)||pointerPower(now)>0)ensureFrame();
 }
 function ensureFrame(){if(!raf&&!document.hidden)raf=requestAnimationFrame(frame);}
 function resize(){
@@ -883,13 +921,43 @@ buttons.forEach((b,i)=>{
 });
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(resizeNavMatrix).observe(nav);
 else if(document.fonts)document.fonts.ready.then(resizeNavMatrix);
-window.addEventListener('hashchange',()=>{if(zoom||detail)return;const i=sections.findIndex(s=>s.id===location.hash.slice(1));if(i>=0){if(transition)finish();go(i,false);}});
+window.addEventListener('hashchange',()=>{if(zoom||detail)return;const i=sections.findIndex(s=>s.id===location.hash.slice(1));if(i>=0){if(transition)finish();go(i);}});
 function queueResize(){
  if(!resizeFrame)resizeFrame=requestAnimationFrame(()=>{resizeFrame=0;resize();});
 }
 window.addEventListener('resize',queueResize,{passive:true});
+window.addEventListener('orientationchange',queueResize,{passive:true});
+// Mobile browsers retract the URL bar without reliably firing a window resize,
+// yet 100dvh sections change height when they do. visualViewport is the signal
+// that is actually delivered there. Without it the page keeps a scroll offset
+// measured against the old section heights and comes to rest on a seam.
+if(window.visualViewport){
+ visualViewport.addEventListener('resize',queueResize,{passive:true});
+ visualViewport.addEventListener('scroll',queueResize,{passive:true});
+}
+// The document scroll belongs to this script alone: one section top, never
+// anything in between. An offset we did not set - a bfcache restore, an in-app
+// browser restoring its last session, find-in-page, an assistive scroll - is
+// put back. Skipped mid-flight, where the transition drives the scroll itself.
+let watchdog=0;
+window.addEventListener('scroll',()=>{
+ if(transition||zoom||detail||watchdog)return;
+ watchdog=requestAnimationFrame(()=>{
+  watchdog=0;
+  if(transition||zoom||detail)return;
+  if(Math.abs(scrollY-sections[current].offsetTop)>1)snap();
+ });
+},{passive:true});
+// Coming back through bfcache restores the old offset after this script has
+// already run, so the arrival is re-asserted rather than assumed.
+window.addEventListener('pageshow',e=>{
+ if('scrollRestoration'in history)history.scrollRestoration='manual';
+ if(e.persisted&&transition)finish();
+ queueResize();
+});
+window.addEventListener('load',queueResize,{passive:true});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){if(raf)cancelAnimationFrame(raf);raf=0;if(transition)finish();}else{lastBg=0;ensureFrame();}});
-motion.addEventListener('change',()=>{if(transition)finish();if(motion.matches){bgc.clearRect(0,0,W,H);document.body.dataset.heartbeat='off';}ensureFrame();});
+motion.addEventListener('change',()=>{if(transition)finish();if(motion.matches){endIntro();bgc.clearRect(0,0,W,H);}ensureFrame();});
 window.addEventListener('pointermove',e=>{if(e.pointerType==='mouse'){pointer={x:e.clientX,y:e.clientY};pointerStamp=performance.now();ensureFrame();}},{passive:true});
 document.addEventListener('pointerleave',()=>{pointer=null;lastBg=0;ensureFrame();});
 
@@ -918,6 +986,7 @@ function fallbackFocus(){
 function instant(){return motion.matches||!renderer||renderFailed;}
 function openDetail(trigger){
  if(zoom||detail||transition)return;
+ endIntro();
  const entry=trigger.closest('.role,.project'),src=entry&&entry.querySelector('.entry-detail');
  if(!src)return;
  const pose=focusPoses[entry.dataset.focus]||fallbackFocus();
@@ -938,7 +1007,6 @@ function openDetail(trigger){
  // panel goes inert, so nothing invisible can be tabbed into.
  sections[current].inert=true;sections[current].setAttribute('aria-hidden','true');
  root.classList.add('detail-open');
- document.body.dataset.heartbeat='off';
  if(instant()){detail={entry,pose,trigger};showPanel();lastBg=0;ensureFrame();return;}
  zoom={dir:'in',start:performance.now(),span:ZOOM_IN,pose,entry,trigger};
  publishZoom(zoom.start);lastBg=0;ensureFrame();
@@ -946,7 +1014,6 @@ function openDetail(trigger){
 function showPanel(){
  detailLayer.classList.add('is-open');
  publishZoom(performance.now());
- document.body.dataset.phase='detail';
  // The body is the scroll container, so focusing it (not the button) is what
  // lets a keyboard read the long form.
  (detailBody||detailClose).focus({preventScroll:true});
@@ -963,7 +1030,6 @@ function closeDetail(then,to){
  if(to!==undefined&&to!==current&&to>=0&&to<sections.length){
   const hops=Math.abs(to-current);
   current=to;
-  history.replaceState(null,'','#'+sections[current].id);
   // The rail and the progress bar answer the click at once; the copy behind
   // the panel is still fully dissolved, so the page can be scrolled under it
   // without anything being seen to jump.
@@ -984,15 +1050,12 @@ function surface(trigger,then){
  detailLayer.hidden=true;
  publishZoom(performance.now());
  labels(); // restores each section's own inert state
- document.body.dataset.phase='content';
- document.body.dataset.heartbeat=motion.matches?'off':'waiting';
  lastEnd=performance.now();lastBg=0;ensureFrame();
  // A hand-off moves focus itself; only a plain close returns it to the entry.
  if(then)then();else if(trigger)trigger.focus({preventScroll:true});
 }
 function stepZoom(now){
  const z=zoom,span=z.span,t=now-z.start;
- document.body.dataset.phase=z.dir==='in'?'dive':'surface';
  // Nothing is handed back part-way through any more: the copy comes home on
  // the same ramp the camera is on, so the flight is one move in both
  // directions instead of a flight followed by a hand-off.
@@ -1013,8 +1076,24 @@ if(detailClose)detailClose.addEventListener('click',()=>closeDetail());
 
 sections.forEach(s=>s.tabIndex=-1);
 try{renderer=createPackage($('#packageCanvas'));}catch(e){renderFailed=true;console.warn('Compute renderer unavailable; using direct section navigation.',e);}
+// No fabric, or the reader asked for stillness: there is nothing to fly. Armed
+// before the warm-up render below so the first frame ever painted is the start
+// of the approach, not the pose it ends on.
+if(renderer&&!renderFailed&&!motion.matches)intro={start:performance.now()};
 // Warm the shader before the first frame so the fabric is there on load.
-if(renderer&&!renderFailed)renderer.render(cameraPose(performance.now()),0,[],null,AMBIENT,null);
-document.documentElement.classList.add('enhanced');if('scrollRestoration'in history)history.scrollRestoration='manual';
-makeGlowSprite();labels();resize();document.body.dataset.phase='content';document.body.dataset.heartbeat=motion.matches?'off':'waiting';
+// A throw here used to take the rest of the bootstrap down with it: no
+// 'enhanced' class, no labels(), no resize(). The page then fell back to a
+// freely scrolling seven-viewport stack with the browser's scroll restoration
+// still on, which is how a reader ends up parked in the middle of nowhere.
+if(renderer&&!renderFailed)try{renderer.render(cameraPose(performance.now()),0,[],null,AMBIENT,null);}
+catch(e){renderFailed=true;intro=null;console.warn('Compute renderer warm-up failed; using direct section navigation.',e);}
+document.documentElement.classList.add('enhanced');
+makeGlowSprite();labels();
+// The first arrival used to be the only one that happened in the dark: lastEnd
+// is 0 until a flight ends, so revealAmount short-circuited and the fabric came
+// up flat at AMBIENT. Every section change gets a lit arrival that decays over
+// REVEAL_OUT; the page everyone actually lands on got none of it. Set here so
+// the landing is lit even when the flight below is skipped.
+lastEnd=performance.now();
+resize();
 })();

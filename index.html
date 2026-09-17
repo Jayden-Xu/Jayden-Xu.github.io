@@ -4,6 +4,17 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Jayden Xu</title>
+<!-- Runs before anything can paint. Both of these have to beat the browser's own
+     load-time scrolling, which the deferred script is far too late to stop. -->
+<script>try{
+  if("scrollRestoration"in history)history.scrollRestoration="manual";
+  // Navigation no longer writes the hash, but a link saved back when it did -
+  // or one an in-app browser hands back while restoring its last session - can
+  // still arrive with one. Dropped here, before the browser performs its
+  // fragment scroll, so a cold load always opens on Home. In-page anchors are
+  // unaffected: they change the hash on a live page, and hashchange routes them.
+  if(location.hash)history.replaceState(null,"",location.pathname+location.search);
+}catch(e){}</script>
 <meta name="description" content="Jayden Xu (徐珮宇)" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23000000'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='16' fill='%23E8963D' text-anchor='middle'%3EJX%3C/text%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
