@@ -1,7 +1,7 @@
 :root{
     --bg:#000000;
     --text:#E9E6DF;
-    --text-dim:#9AA0AA;
+    --text-dim:#9A968E;
     --accent-warm:#E8963D;
     --accent-cool:#5FA0C9;
     --rule:#22262E;
@@ -16,7 +16,7 @@
     --fs-tag:clamp(.8125rem,.78rem + .06vw,.9375rem);
     --fs-heading:clamp(1.25rem,1.1rem + .45vw,1.75rem);
     --fs-role:clamp(1.0625rem,1rem + .23vw,1.375rem);
-    --fs-school:clamp(1.4rem,1.45rem + .2vw,1.875rem);
+    --fs-org:clamp(1.4rem,1.45rem + .2vw,1.875rem);
     --fs-nav:clamp(.8125rem,.78rem + .11vw,1rem);
     --content-max:clamp(35rem,70vw,75rem);
     --gutter:clamp(1rem,4vw,3rem);
@@ -146,9 +146,9 @@
     text-shadow: 0 0 30px rgba(232,150,61,0.3);
   }
   .hero-role{
-    font-family:var(--font-sans);font-weight:500;
+    font-family:var(--font-mono);font-weight:500;
     font-size:clamp(1.125rem,1rem + .45vw,1.75rem);
-    letter-spacing:.035em;line-height:1.45;color:var(--accent-warm);
+    letter-spacing:.06em;line-height:1.45;color:var(--accent-warm);
     margin:0 0 clamp(.75rem,2vh,1.125rem);
   }
   .hero-slogan{
@@ -188,20 +188,23 @@
   .timeline{ position:relative; padding-left:var(--timeline-indent); border-left:1px solid var(--rule); }
   .role{ margin-bottom:var(--space-item); position:relative; }
   .role:last-child{ margin-bottom:0; }
-  .role::before{ content:''; position:absolute; left:calc(-1 * var(--timeline-indent) - 5px); top:.5em; width:9px; height:9px; border-radius:50%; background:var(--accent-warm); }
+  .role::before{ content:''; position:absolute; left:calc(-1 * var(--timeline-indent) - 5px); top:.5em; width:9px; height:9px; border-radius:1px; background:var(--accent-warm); }
   .role-title{ font-weight:500; font-size:var(--fs-role); }
-  .role-org{ font-family:var(--font-script); color:var(--accent-cool); font-size:clamp(1.375rem,1.3rem + .2vw,1.75rem); font-weight:600; }
+  /* Names of people and places stay handwritten — the one human register on
+     the page. Institutions share one size and the accent, so blue is left to
+     mean exactly one thing: this is a link you can click. */
+  .role-org{ font-family:var(--font-script); color:var(--accent-warm); font-size:var(--fs-org); font-weight:600; }
   .role-meta{ font-family:var(--font-mono); font-size:var(--fs-meta); color:var(--text-dim); margin-top:4px; }
   .role-note, .project-note, .edu-note{ font-family:var(--font-mono); font-size:var(--fs-note); color:var(--text-dim); margin-top:.5rem; }
   .role-note::before, .project-note::before, .edu-note::before{ content:'// '; color:var(--rule); }
 
   .tech-tags{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  /* Tags are labels, not controls, so they read in the accent but keep a
+     neutral rule: an amber border is reserved for things that can be clicked. */
   .tech-tag{
     font-family:var(--font-mono); font-size:var(--fs-tag); letter-spacing:0.03em;
-    color:var(--text-dim); border:1px solid var(--rule); border-radius:3px; padding:2px 8px;
-    opacity:1; transition:opacity .25s ease, color .25s ease, border-color .25s ease;
+    color:rgba(232,150,61,.82); border:1px solid var(--rule); border-radius:3px; padding:2px 8px;
   }
-  .role:hover .tech-tag, .project:hover .tech-tag{ opacity:1; color:var(--accent-warm); border-color:var(--accent-warm); }
 
   /* PROJECTS */
   .project{ padding:clamp(1.25rem,3.5vh,2rem) 0; border-bottom:1px solid var(--rule); }
@@ -212,36 +215,49 @@
   .project-dates{ font-family:var(--font-mono); font-size:var(--fs-meta); color:var(--text-dim); white-space:normal; }
   .project-link{
     display:inline-flex; align-items:center; justify-content:center;
-    width:40px; height:40px; flex:none; border-radius:50%;
+    width:40px; height:40px; flex:none; border-radius:3px;
     border:1px solid var(--rule); color:var(--text-dim);
-    opacity:.6;
-    transition: color .25s ease, border-color .25s ease, opacity .25s ease, background-color .25s ease;
+    box-shadow:none;
+    transition: color .25s ease, border-color .25s ease, background-color .25s ease, box-shadow .25s ease;
   }
-  .project:hover .project-link{ opacity:1; color:var(--accent-warm); border-color:var(--accent-warm); }
-  .project-link:hover{ opacity:1; color:var(--accent-warm); border-color:var(--accent-warm); background:rgba(232,150,61,.12); }
-  .project-link:focus-visible{ opacity:1; color:var(--accent-warm); border-color:var(--accent-warm); }
+  .project:hover .project-link:not(:hover):not(:focus-visible){
+    color:rgba(232,150,61,.9); border-color:rgba(232,150,61,.45);
+  }
+  .project-link:hover, .project-link:focus-visible{
+    color:#ffd1a0; border-color:rgba(232,150,61,.62); background:rgba(232,150,61,.08);
+    box-shadow:0 0 20px -5px rgba(232,150,61,.6), inset 0 0 14px -8px rgba(232,150,61,.9);
+  }
   .project-link svg{ width:17px; height:17px; }
 
   /* EDUCATION */
   .edu-item{ padding:clamp(1rem,3vh,1.75rem) 0; border-bottom:1px solid var(--rule); }
   .edu-item:last-child{ border-bottom:none; }
   .edu-head{ display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:.35rem 1rem; }
-  .edu-school{ font-family:var(--font-script); font-weight:600; font-size:var(--fs-school); flex:1 1 16rem; min-width:0;max-width:100%; }
+  .edu-school{ font-family:var(--font-script); font-weight:600; font-size:var(--fs-org); color:var(--accent-warm); flex:1 1 16rem; min-width:0;max-width:100%; }
   .edu-degree{ color:var(--text-dim); font-size:var(--fs-note); margin-top:2px; }
   .edu-dates{ font-family:var(--font-mono); font-size:var(--fs-meta); color:var(--text-dim); white-space:normal; }
 
   /* CONTACT */
   .contact-icons{ display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:clamp(1.5rem,3vh,2rem) var(--contact-gap); margin:1.25rem auto 0; }
   .contact-icon{
-    position:relative; width:var(--contact-size); height:var(--contact-size); flex:none; padding:0; border-radius:50%;
+    position:relative; width:var(--contact-size); height:var(--contact-size); flex:none; padding:0; border-radius:3px;
     border:1px solid var(--rule); background:transparent; color:var(--text-dim);
     display:flex; align-items:center; justify-content:center; cursor:pointer;
-    opacity:.55;
-    transition: color .25s ease, border-color .25s ease, opacity .25s ease, background-color .25s ease, transform .15s;
+    box-shadow:none;
+    transition: color .25s ease, border-color .25s ease, background-color .25s ease, box-shadow .25s ease, transform .15s;
   }
-  .contact-icons:hover .contact-icon{ opacity:.8; }
-  .contact-icon:hover{ opacity:1; color:var(--accent-warm); border-color:var(--accent-warm); background:rgba(232,150,61,.10); }
-  .contact-icon:focus-visible{ opacity:1; }
+  /* Same two levels as .detail-head, but the first one is spent by arriving:
+     the section being the one on screen is what wakes its controls, so they are
+     already lit by the time the pointer moves. The glow still belongs to the
+     single icon being aimed at — that is the part hover is needed for. */
+  #contact.is-active .contact-icon:not(:hover):not(:focus-visible),
+  html:not(.enhanced) .contact-icon:not(:hover):not(:focus-visible){
+    color:rgba(232,150,61,.9); border-color:rgba(232,150,61,.45);
+  }
+  .contact-icon:hover, .contact-icon:focus-visible{
+    color:#ffd1a0; border-color:rgba(232,150,61,.62); background:rgba(232,150,61,.08);
+    box-shadow:0 0 20px -5px rgba(232,150,61,.6), inset 0 0 14px -8px rgba(232,150,61,.9);
+  }
   .contact-icon:active{ transform:scale(0.94); }
   .contact-icon svg{ width:44%; height:44%; }
   a.contact-icon:hover{text-decoration:none;}
@@ -358,8 +374,9 @@
      Every experience and project entry can be flown into: the camera dives
      from the section's district down onto one component of it, the page copy
      steps aside, and the entry's long form is read against that close-up. */
-  /* The control sits at the top right of its entry, where the eye starts, and
-     the whole entry is a hit area for it — see .is-inspectable below. */
+  /* The control sits at the top right of its entry, where the eye starts. It is
+     the only hit area; the entry around it lights it up on hover — see
+     .is-inspectable below. Dark at rest, lit when reached for. */
   .role-head{ display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:.75rem 1rem; }
   .role-headings{ min-width:0; flex:1 1 18rem; }
   .project-head-aside{ display:inline-flex; flex-wrap:wrap; align-items:center; gap:.5rem .75rem; flex:none; }
@@ -367,18 +384,21 @@
     display:inline-flex; align-items:center; gap:.5rem; flex:none;
     min-height:36px; padding:5px 12px 5px 10px; cursor:pointer;
     font-family:var(--font-mono); font-size:var(--fs-tag); letter-spacing:.06em; text-transform:uppercase;
-    color:var(--accent-warm); background:rgba(232,150,61,.14);
-    border:1px solid var(--accent-warm); border-radius:3px;
-    transition:color .25s ease, border-color .25s ease, background-color .25s ease, transform .15s ease;
+    color:rgba(232,150,61,.72); background:transparent;
+    border:1px solid rgba(232,150,61,.22); border-radius:3px;
+    box-shadow:none;
+    transition:color .25s ease, border-color .25s ease, background-color .25s ease, box-shadow .25s ease, transform .15s ease;
   }
   .entry-more svg{ width:15px; height:15px; flex:none; }
-  .entry-more:hover, .entry-more:focus-visible{ color:#ffd1a0; border-color:#ffd1a0; background:rgba(232,150,61,.26); }
   .entry-more:active{ transform:scale(.97); }
-  /* Clicking anywhere in the entry dives in, so the entry says so: the control
-     lights up with it, and the cursor changes over the whole block. */
-  .is-inspectable{ cursor:pointer; }
-  .is-inspectable:hover .entry-more{ color:#ffd1a0; border-color:#ffd1a0; background:rgba(232,150,61,.26); }
-  .is-inspectable a, .is-inspectable button{ cursor:pointer; }
+  /* Only the control dives in, but the whole entry advertises it: hovering the
+     entry lights the control, so the block still says it has a long form
+     without claiming to be a button itself. */
+  .entry-more:hover, .entry-more:focus-visible,
+  .is-inspectable:hover .entry-more{
+    color:#ffd1a0; border-color:rgba(232,150,61,.62); background:rgba(232,150,61,.08);
+    box-shadow:0 0 20px -5px rgba(232,150,61,.6), inset 0 0 14px -8px rgba(232,150,61,.9);
+  }
 
   /* No script: the flight cannot happen, so the long form simply stays on the
      page and the control that would trigger it is not offered. */
@@ -486,24 +506,43 @@
   .detail-body .tech-tags{ margin-top:clamp(1rem,3vh,1.5rem); }
   .detail-link{
     display:inline-flex; align-items:center; justify-content:center; flex:none;
-    width:38px; height:38px; border-radius:50%;
+    width:38px; height:38px; border-radius:3px;
     color:var(--text-dim); border:1px solid var(--rule);
-    transition:color .25s ease, border-color .25s ease, background-color .25s ease;
+    box-shadow:none;
+    transition:color .25s ease, border-color .25s ease, background-color .25s ease, box-shadow .25s ease;
   }
   .detail-link svg{ width:16px; height:16px; flex:none; }
-  .detail-link:hover, .detail-link:focus-visible{ color:var(--accent-warm); border-color:var(--accent-warm); background:rgba(232,150,61,.10); text-decoration:none; }
+  .detail-link:hover, .detail-link:focus-visible{
+    color:#ffd1a0; border-color:rgba(232,150,61,.62); background:rgba(232,150,61,.08);
+    box-shadow:0 0 20px -5px rgba(232,150,61,.6), inset 0 0 14px -8px rgba(232,150,61,.9);
+    text-decoration:none;
+  }
 
   .detail-close{
     display:inline-flex; align-items:center; gap:.5rem; flex:none;
     min-height:40px; padding:6px 13px 6px 11px; cursor:pointer;
     font-family:var(--font-mono); font-size:var(--fs-tag); letter-spacing:.06em; text-transform:uppercase;
-    color:var(--accent-warm); background:rgba(232,150,61,.14);
-    border:1px solid var(--accent-warm); border-radius:3px;
-    transition:color .25s ease, border-color .25s ease, background-color .25s ease, transform .15s ease;
+    color:rgba(232,150,61,.72); background:transparent;
+    border:1px solid rgba(232,150,61,.22); border-radius:3px;
+    box-shadow:none;
+    transition:color .25s ease, border-color .25s ease, background-color .25s ease, box-shadow .25s ease, transform .15s ease;
   }
   .detail-close svg{ width:16px; height:16px; flex:none; }
-  .detail-close:hover, .detail-close:focus-visible{ color:#ffd1a0; border-color:#ffd1a0; background:rgba(232,150,61,.26); }
+  .detail-close:hover, .detail-close:focus-visible{
+    color:#ffd1a0; border-color:rgba(232,150,61,.62); background:rgba(232,150,61,.08);
+    box-shadow:0 0 20px -5px rgba(232,150,61,.6), inset 0 0 14px -8px rgba(232,150,61,.9);
+  }
   .detail-close:active{ transform:scale(.97); }
+
+  /* The header is the control strip. Reaching for it wakes both controls — the
+     links and the way out — so neither has to be hunted for on a dark panel.
+     Waking is not the same as being under the pointer: the strip only lifts the
+     colour, and the full glow above stays with the one control being aimed at,
+     which is what keeps two lit controls from becoming ambiguous. */
+  .detail-head:hover .detail-link:not(:hover):not(:focus-visible),
+  .detail-head:hover .detail-close:not(:hover):not(:focus-visible){
+    color:rgba(232,150,61,.9); border-color:rgba(232,150,61,.45);
+  }
 
   @media(max-width:64em),(max-height:32em){
     .detail{

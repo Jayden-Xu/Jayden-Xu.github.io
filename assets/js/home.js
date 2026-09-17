@@ -1002,21 +1002,12 @@ function stepZoom(now){
  else surface(z.trigger,z.then);
 }
 document.querySelectorAll('.entry-more').forEach(b=>b.addEventListener('click',()=>openDetail(b)));
-// The whole entry is the hit area. Links and the control itself keep their own
-// behaviour, and a click that ends a text selection is a selection, not a dive.
+// The control is the only hit area. The entry only advertises it: is-inspectable
+// lights the control on hover (see site.css), so the block says it has a long
+// form without being a click target itself — a stray click in the copy, a tap
+// that was meant as a scroll, or a drag that ends a text selection never dives.
 document.querySelectorAll('.role,.project').forEach(entry=>{
- const button=entry.querySelector('.entry-more');
- if(!button||!entry.querySelector('.entry-detail'))return;
- entry.classList.add('is-inspectable');
- let downX=0,downY=0;
- entry.addEventListener('pointerdown',e=>{downX=e.clientX;downY=e.clientY;},{passive:true});
- entry.addEventListener('click',e=>{
-  if(e.target.closest('a,button,input,textarea,select'))return;
-  if(Math.hypot(e.clientX-downX,e.clientY-downY)>10)return; // a drag, not a tap
-  const picked=getSelection&&getSelection();
-  if(picked&&!picked.isCollapsed&&picked.toString().trim())return;
-  openDetail(button);
- });
+ if(entry.querySelector('.entry-more')&&entry.querySelector('.entry-detail'))entry.classList.add('is-inspectable');
 });
 if(detailClose)detailClose.addEventListener('click',()=>closeDetail());
 
