@@ -73,8 +73,27 @@ const focusPoses={
  'switch-arm-north':{target:[0,.58,-43.1],dist:2.06,phi:.86,theta:.08,fov:.47},
  // radial package (z=0) and tensor floorplan (z=-10), for entries filed there
  'package-die':{target:[0,.74,0],dist:2.06,phi:.80,theta:.30,fov:.47},
- 'tensor-chiplet':{target:[2.18,.60,-12.18],dist:2.06,phi:.88,theta:.50,fov:.47}
+ 'tensor-chiplet':{target:[2.18,.60,-12.18],dist:2.06,phi:.88,theta:.50,fov:.47},
+ // I/O district (z=-60): the paired uplink standing off the main portal stack.
+ // Same bearing as the contact pose, so the dive is a straight push in.
+ 'io-uplink':{target:[-1.60,.95,-58.60],dist:1.92,phi:.88,theta:-.30,fov:.47}
 };
+// The point the uplink widget is pinned to - the lit node on top of the
+// beacon. Projected every frame so a DOM button can ride the geometry
+// instead of floating over it (see placeUplink).
+const UPLINK_ANCHOR=[-1.60,1.14,-58.60];
+// The five contact ports, in the order the icons are authored in. Each is the
+// lit node on top of one post in the row across the I/O portal sill (see
+// district() kind 6), projected the same way the beacon is.
+const CONTACT_ANCHORS=[[-1.70,.55,-61],[-.85,.55,-61],[0,.55,-61],[.85,.55,-61],[1.70,.55,-61]];
+// Five of the I/O district's eight flow-field sources are pinned to those same
+// port nodes instead of being sampled, so a click can fire a front from the
+// exact node that was pressed. Keyed by district kind, and in the district's
+// own local coordinates — the fields are solved once per kind and reused by
+// every tile of it. Sources 0-2 are left to the usual scheme.
+const FORCED_SOURCES={6:CONTACT_ANCHORS.map((a,i)=>[3+i,[a[0],a[1],a[2]+60]])};
+// Which field each icon fires, in the order the icons are authored in.
+const CONTACT_FIELDS=CONTACT_ANCHORS.map((a,i)=>3+i);
 const ZOOM_IN=1500, ZOOM_OUT=1150, DETAIL_DRIFT=.24;
 // The flight and the panel are two states, never both: zoom holds the camera
 // while it travels, detail holds it once it has arrived.
@@ -168,7 +187,10 @@ function createPackage(canvas){
  uniform vec3 uEye;uniform vec2 uViewport;
  uniform float uTime,uAmbient,uSweepHead,uSweepWidth,uSweepGain;
  uniform vec3 uSweepTint;
- uniform vec3 uPulseRadius,uPulseGain,uPulseTint;uniform float uPulseWidth,uPulseTail;
+ // One tint per slot rather than one for all three: the ambient fronts are cool
+ // and the fabric's own, while a front fired by something the reader did is
+ // warm, and the difference is the whole point of firing one.
+ uniform vec3 uPulseRadius,uPulseGain;uniform vec3 uPulseTint[3];uniform float uPulseWidth,uPulseTail;
  // A front travelling out from its source, with a decaying wake behind it so
  // the structure it has already passed stays lit for a moment.
  float pulseAt(float flow,float radius,float gain){
@@ -199,7 +221,7 @@ function createPackage(canvas){
  float pa=pulseAt(vPulse.x,uPulseRadius.x,uPulseGain.x);
  float pb=pulseAt(vPulse.y,uPulseRadius.y,uPulseGain.y);
  float pc=pulseAt(vPulse.z,uPulseRadius.z,uPulseGain.z);
- total+=pa+pb+pc;tint+=uPulseTint*(pa+pb+pc);
+ total+=pa+pb+pc;tint+=uPulseTint[0]*pa+uPulseTint[1]*pb+uPulseTint[2]*pc;
  vec3 tone=total>.0001?tint/total:vec3(.70,.78,.90);
  float alpha=aa*fog*vStrength*activity*(uAmbient+min(total,2.8));
  gl_FragColor=vec4(tone,alpha);}`;
@@ -300,6 +322,46 @@ function createPackage(canvas){
     const n=detailed?20:5;for(let j=0;j<n;j++){const q=-2.6+j*5.2/(n-1);ring(x+side*2.7,.9,z+q,1.05,.12,.50);line([x+side*2.7,.88,z+q],[x+side*1.8,.15,z+q],.43);}
    }
    if(detailed)for(let k=0;k<16;k++){const q=(k-7.5)*.12;line([x+q,.08,z+3.5],[x+q,.08,z-3.5],.42);}
+   // Paired uplink: a second, much smaller portal standing clear of the main
+   // stack, with a cable run back to it. Every other component on this
+   // district is part of the district; this one is the link out of it.
+   if(detailed){
+    const ux=x-1.60,uz=z+1.40;
+    for(let j=0;j<3;j++){
+     const depth=uz-j*.16,w=.90+j*.08,h=.62+j*.05;
+     const pts=[[ux-w/2,.06,depth],[ux-w/2,h,depth],[ux+w/2,h,depth],[ux+w/2,.06,depth]];
+     for(let k=0;k<4;k++)line(pts[k],pts[(k+1)%4],j===0?.88:.44);
+    }
+    cage(ux,0,uz,.30,.95,.30,.80);
+    for(let j=1;j<5;j++)ring(ux,j*.19,uz,.30,.30,.30);
+    const crown=polygon(ux,.98,uz,.26,8,.86,Math.PI/8),node=polygon(ux,1.14,uz,.11,8,.92,Math.PI/8);
+    for(let k=0;k<8;k++)line(crown[k],node[k],.62);
+    // The run leaves the main stack at a corner it actually shares, so the
+    // flow field carries a signal out along it rather than stranding the
+    // beacon on an island of its own.
+    const run=[[x-1.2,.10,z],[x-1.50,.44,z+.58],[ux,.72,uz-.32],[ux,.98,uz]];
+    for(let k=0;k<3;k++)line(run[k],run[k+1],.66);
+   }
+   // Contact ports: five short posts on a rail across the portal sill, one per
+   // way of reaching me. Same trick as the uplink — home.js projects each node
+   // and drops the matching icon on it (see placeContacts) — but these carry
+   // their glyph, so the row still reads as contact details instead of turning
+   // into five more things to guess at. Deeper than the beacon and set well
+   // above it on screen, so the two never collide.
+   if(detailed){
+    const pz=z-1.0,cols=[-1.70,-.85,0,.85,1.70];
+    for(let i=0;i<cols.length;i++){
+     const cx=x+cols[i];
+     cage(cx,.02,pz,.17,.40,.17,.74);ring(cx,.24,pz,.17,.17,.30);
+     const crown=polygon(cx,.44,pz,.17,6,.86),node=polygon(cx,.55,pz,.06,6,.94);
+     for(let k=0;k<6;k++)line(crown[k],node[k],.60);
+     if(i)line([x+cols[i-1],.02,pz],[cx,.02,pz],.52);
+    }
+    // Both ends of the rail land on corners the portal actually has, so the
+    // flow field reaches the posts through the structure — a row that nothing
+    // connects to would simply never light.
+    for(const side of [-1,1])line([x+side*1.70,.02,pz],[x+side*1.2,.10,z],.46);
+   }
   }
  }
  // Seven distinct detailed landmarks, one per section; surrounding low-detail
@@ -388,6 +450,17 @@ function createPackage(canvas){
    }
    seeds.push(farI);
   }
+  // Sources a click can name. Sampling picks points for their spread, which is
+  // right for a fabric that lights itself and useless for answering a press:
+  // these are overwritten with the nearest node to a component the page can
+  // point at. Everything downstream is unchanged — same Dijkstra, same
+  // structure — so a front fired here travels exactly as an ambient one does.
+  const forced=FORCED_SOURCES[kind];
+  if(forced)for(const [slot,q] of forced){
+   let best=Infinity,bestI=-1;
+   for(let i=0;i<pts.length;i++){const d=d3(pts[i],q);if(d<best){best=d;bestI=i;}}
+   if(bestI>=0&&best<=REACH)seeds[slot]=bestI;
+  }
   const fields=seeds.map(seed=>{
    D.fill(Infinity);heap.length=0;
    D[seed]=0;push(0,seed);
@@ -440,10 +513,10 @@ function createPackage(canvas){
  const segCount=segs.length;segs.length=0;
  const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,vertices,gl.STATIC_DRAW);
  [['aStart',3,0],['aEnd',3,12],['aCorner',2,24],['aStrength',1,32],['aFlowA',4,36],['aFlowB',4,52]].forEach(([name,size,offset])=>{const a=gl.getAttribLocation(program,name);gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,size,gl.FLOAT,false,STRIDE*4,offset);});
- const u={};['uView','uProjection','uEye','uOrigin','uResolution','uViewport','uPixelRatio','uTime','uAmbient','uSweepHead','uSweepWidth','uSweepGain','uSweepTint','uSelA[0]','uSelB[0]','uPulseRadius','uPulseGain','uPulseTint','uPulseWidth','uPulseTail','uLights[0]','uLightColor[0]'].forEach(n=>u[n]=gl.getUniformLocation(program,n));
+ const u={};['uView','uProjection','uEye','uOrigin','uResolution','uViewport','uPixelRatio','uTime','uAmbient','uSweepHead','uSweepWidth','uSweepGain','uSweepTint','uSelA[0]','uSelB[0]','uPulseRadius','uPulseGain','uPulseTint[0]','uPulseWidth','uPulseTail','uLights[0]','uLightColor[0]'].forEach(n=>u[n]=gl.getUniformLocation(program,n));
  const lightData=new Float32Array(MAX_LIGHTS*4),colorData=new Float32Array(MAX_LIGHTS*3);
  const selA=new Float32Array(SLOTS*4),selB=new Float32Array(SLOTS*4);
- const radii=new Float32Array(SLOTS),gains=new Float32Array(SLOTS);
+ const radii=new Float32Array(SLOTS),gains=new Float32Array(SLOTS),tints=new Float32Array(SLOTS*3);
  const norm=v=>{const l=Math.hypot(...v);return v.map(x=>x/l);};const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];const dot=(a,b)=>a.reduce((s,x,i)=>s+x*b[i],0);
  // `roll` banks the camera about its own view axis. Nothing on screen is
  // re-aimed by it, so it buys drama without ever breaking the line of a move.
@@ -451,6 +524,18 @@ function createPackage(canvas){
  if(roll){const c=Math.cos(roll),sn=Math.sin(roll),rx=x.map((v,i)=>v*c+y[i]*sn);y=y.map((v,i)=>v*c-x[i]*sn);x=rx;}
  return new Float32Array([x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-dot(x,eye),-dot(y,eye),-dot(z,eye),1]);}
  let aspect=1,dpr=1;
+ // proj * view from the last frame, kept so a DOM widget can be pinned to a
+ // point in the fabric: the button is put where the geometry actually is,
+ // whatever the camera is doing to it.
+ let lastVP=null;
+ const mul=(a,b)=>{const o=new Float32Array(16);for(let c=0;c<4;c++)for(let r=0;r<4;r++){let s=0;for(let k=0;k<4;k++)s+=a[k*4+r]*b[c*4+k];o[c*4+r]=s;}return o;};
+ function project(q){
+  if(!lastVP)return null;
+  const m=lastVP,w=m[3]*q[0]+m[7]*q[1]+m[11]*q[2]+m[15];
+  if(w<=.05)return null; // behind the lens
+  return {x:((m[0]*q[0]+m[4]*q[1]+m[8]*q[2]+m[12])/w*.5+.5)*W,
+          y:(.5-(m[1]*q[0]+m[5]*q[1]+m[9]*q[2]+m[13])/w*.5)*H};
+ }
  function resize(){dpr=Math.min(devicePixelRatio||1,1.6,Math.sqrt(2200000/(W*H)));canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);aspect=W/H;gl.viewport(0,0,canvas.width,canvas.height);}
  function render(p,time,lights,sweep,ambient,pulses){
   const distance=p.distance*(aspect<.75?1.18:1),sp=Math.sin(p.phi),cp=Math.cos(p.phi);
@@ -473,16 +558,19 @@ function createPackage(canvas){
   for(let i=0;i<SLOTS;i++){
    const q=pulses&&pulses[i];
    radii[i]=q?q.radius:0;gains[i]=q?q.gain:0;
+   const t=(q&&q.tint)||PULSE_TINT;
+   tints[i*3]=t[0];tints[i*3+1]=t[1];tints[i*3+2]=t[2];
    if(q)(q.field<4?selA:selB)[i*4+(q.field&3)]=1;
   }
   gl.uniform4fv(u['uSelA[0]'],selA);gl.uniform4fv(u['uSelB[0]'],selB);
   gl.uniform3fv(u.uPulseRadius,radii);gl.uniform3fv(u.uPulseGain,gains);
-  gl.uniform3fv(u.uPulseTint,PULSE_TINT);
+  gl.uniform3fv(u['uPulseTint[0]'],tints);
   gl.uniform1f(u.uPulseWidth,PULSE_WIDTH);gl.uniform1f(u.uPulseTail,PULSE_TAIL);
-  gl.uniformMatrix4fv(u.uView,false,view(eye,p.target,p.roll||0));gl.uniformMatrix4fv(u.uProjection,false,proj);gl.uniform3fv(u.uEye,eye);gl.uniform3fv(u.uOrigin,[0,0,0]);gl.uniform2f(u.uResolution,canvas.width,canvas.height);gl.uniform2f(u.uViewport,canvas.width,canvas.height);gl.uniform1f(u.uPixelRatio,dpr);gl.uniform1f(u.uTime,time/1000);gl.drawArrays(gl.TRIANGLES,0,segCount*6);
+  const viewM=view(eye,p.target,p.roll||0);lastVP=mul(proj,viewM);
+  gl.uniformMatrix4fv(u.uView,false,viewM);gl.uniformMatrix4fv(u.uProjection,false,proj);gl.uniform3fv(u.uEye,eye);gl.uniform3fv(u.uOrigin,[0,0,0]);gl.uniform2f(u.uResolution,canvas.width,canvas.height);gl.uniform2f(u.uViewport,canvas.width,canvas.height);gl.uniform1f(u.uPixelRatio,dpr);gl.uniform1f(u.uTime,time/1000);gl.drawArrays(gl.TRIANGLES,0,segCount*6);
  }
  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();renderFailed=true;if(transition)finish();});
- resize();return {resize,render};
+ resize();return {resize,render,project};
 }
 
 // The fabric is always on screen, so navigation is one short camera flight
@@ -627,16 +715,35 @@ function sceneSweep(now){
 // from wherever the spoke met it, up a memory column — instead of expanding as
 // a circle. Every section is parked on a different district, so every section
 // propagates differently.
+// A front nobody scheduled. The ambient flights use two of the three slots the
+// shader carries; the third has always been free, and this is what it is for —
+// the fabric answering something the reader did, fired at the source that
+// action names. It is gold where the ambient fronts are cool, and it climbs
+// much faster than it falls, so it reads as a discharge rather than a wave.
+const BURST_SPAN=2300, BURST_GAIN=2.5, BURST_TINT=[1,.77,.33];
+let burst=null;
+function fireBurst(field){
+ if(motion.matches||!renderer||renderFailed)return;
+ burst={field,start:performance.now()};
+ lastBg=0;ensureFrame();
+}
 function scenePulses(now){
  if(motion.matches)return null;
  if(!flights.length)seedFlights(now);
  const taken=new Set(flights.map(f=>f.field));
  for(const f of flights)if(now>=f.start+f.span){taken.delete(f.field);retireFlight(f,now,taken);}
- return flights.map(f=>{
+ const out=flights.map(f=>{
   const t=(now-f.start)/f.span;
   if(t<0||t>1)return {field:f.field,radius:0,gain:0};
   return {field:f.field,radius:t*PULSE_REACH,gain:Math.min(1,t*9,(1-t)*3.2)*PULSE_GAIN};
  });
+ if(burst){
+  const t=(now-burst.start)/BURST_SPAN;
+  if(t>=1)burst=null;
+  else out.push({field:burst.field,radius:t*PULSE_REACH,
+   gain:Math.min(1,t*16,(1-t)*2.4)*BURST_GAIN,tint:BURST_TINT});
+ }
+ return out;
 }
 function labels(){
  if(navActive!==current){navStates[current].kick=performance.now();navActive=current;}
@@ -671,7 +778,9 @@ function go(index){
  endIntro();
  const from=current;current=index;
  labels();
- if(motion.matches||!renderer||renderFailed){snap();sections[current].focus({preventScroll:true});lastBg=0;ensureFrame();return;}
+ // No flight to hide behind here, so the pinned widgets are moved in the same
+ // breath as the scroll rather than a frame later, which is long enough to see.
+ if(motion.matches||!renderer||renderFailed){snap();placePinned();sections[current].focus({preventScroll:true});lastBg=0;ensureFrame();return;}
  const forward=index>from;
  const outEl=sections[from].querySelector('.section-inner'),inEl=sections[index].querySelector('.section-inner');
  transition={from,to:index,start:performance.now(),forward,outEl,inEl,snapped:false,shift:clamp(H*.073,28,86)};
@@ -679,6 +788,10 @@ function go(index){
  bodyOf(outEl).style.willChange='opacity';bodyOf(inEl).style.willChange='opacity';
  slideFeature(inEl,forward?transition.shift:-transition.shift,0);
  content.inert=true;
+ // The section-inner they live under is about to carry a transform, which
+ // would take a fixed child with it; dropped here, synchronously, so no frame
+ // is ever painted with a widget hanging off its anchor.
+ placePinned();
  ensureFrame();
 }
 // Straight vertical hand-off: the old panel travels out the way the scroll is
@@ -831,6 +944,7 @@ function drawScene(now){
  const reveal=revealAmount(now);
  const exposure=AMBIENT+REVEAL*reveal+DIVE_EXPOSURE*zoomAmount(now);
  if(renderer&&!renderFailed)renderer.render(cameraPose(now),now,sceneLights(now),sweep,exposure,pulses);
+ placePinned();
 }
 function frame(now){
  raf=0;if(document.hidden)return;
@@ -966,8 +1080,21 @@ function copyText(text){
  if(navigator.clipboard&&isSecureContext)return navigator.clipboard.writeText(text);
  const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();const copied=document.execCommand('copy');ta.remove();return copied?Promise.resolve():Promise.reject(Error('copy'));
 }
+// Every icon answers from its own post, copy or link alike: the press put a
+// signal into the fabric, and the fabric is what says so.
+document.querySelectorAll('.contact-icons .contact-icon').forEach((b,i)=>{
+ if(i<CONTACT_FIELDS.length)b.addEventListener('click',()=>fireBurst(CONTACT_FIELDS[i]));
+});
 document.querySelectorAll('.contact-icon[data-copy]').forEach(b=>b.addEventListener('click',()=>{
- copyText(b.dataset.copy).then(()=>{const tip=b.querySelector('.copied-tip');tip.textContent='Copied!';tip.classList.add('show');setTimeout(()=>tip.classList.remove('show'),1200);}).catch(()=>{const tip=b.querySelector('.copied-tip');tip.textContent=b.dataset.copy;tip.classList.add('show');});
+ const tip=b.querySelector('.copied-tip');
+ // Re-shown from scratch each time, so a second click on the same icon reads
+ // as a second confirmation rather than as nothing happening.
+ clearTimeout(tip._hide);tip.classList.remove('show','is-manual');
+ copyText(b.dataset.copy)
+  .then(()=>{tip.textContent='Copied';requestAnimationFrame(()=>tip.classList.add('show'));tip._hide=setTimeout(()=>tip.classList.remove('show'),1400);})
+  // Nothing was copied, so the address is put on screen to be taken by hand.
+  // It has to stay up to be worth anything, and it is prose, not a receipt.
+  .catch(()=>{tip.textContent=b.dataset.copy;tip.classList.add('is-manual','show');});
 }));
 // ---- entry close-ups ------------------------------------------------------
 // Inspect flies the camera from the district a section is parked on down onto
@@ -987,7 +1114,7 @@ function instant(){return motion.matches||!renderer||renderFailed;}
 function openDetail(trigger){
  if(zoom||detail||transition)return;
  endIntro();
- const entry=trigger.closest('.role,.project'),src=entry&&entry.querySelector('.entry-detail');
+ const entry=trigger.closest('.role,.project,.uplink'),src=entry&&entry.querySelector('.entry-detail');
  if(!src)return;
  const pose=focusPoses[entry.dataset.focus]||fallbackFocus();
  const heading=entry.querySelector('.role-title,.project-title');
@@ -1064,7 +1191,7 @@ function stepZoom(now){
  if(z.dir==='in'){detail={entry:z.entry,pose:z.pose,trigger:z.trigger};showPanel();lastBg=0;ensureFrame();}
  else surface(z.trigger,z.then);
 }
-document.querySelectorAll('.entry-more').forEach(b=>b.addEventListener('click',()=>openDetail(b)));
+document.querySelectorAll('.entry-more,.uplink-hotspot').forEach(b=>b.addEventListener('click',()=>openDetail(b)));
 // The control is the only hit area. The entry only advertises it: is-inspectable
 // lights the control on hover (see site.css), so the block says it has a long
 // form without being a click target itself — a stray click in the copy, a tap
@@ -1073,6 +1200,85 @@ document.querySelectorAll('.role,.project').forEach(entry=>{
  if(entry.querySelector('.entry-more')&&entry.querySelector('.entry-detail'))entry.classList.add('is-inspectable');
 });
 if(detailClose)detailClose.addEventListener('click',()=>closeDetail());
+
+// ---- paired uplink --------------------------------------------------------
+// A DOM button that belongs to the fabric rather than to the page: the beacon
+// it names is projected to screen every frame and the button is dropped on it,
+// so it sways with the camera and reads as a component of the I/O district.
+// It dives like any other entry - same flight, same panel - and the panel is
+// what carries the link out, so the tap that leaves the site is a real click
+// on a real anchor rather than a scripted jump a popup blocker would eat.
+// Off-frame, or with no fabric at all, it falls back into the contact copy,
+// where it is still a plain button with the same long form behind it.
+//
+// Three states, not two. `is-live` is placed on its node. Plain flow is the
+// fallback for a page that has no fabric to stand on. `is-stowed` is the one
+// in between, and it exists because of what a page turn looks like without it:
+// a widget that belongs to the fabric has no node for the length of the move,
+// so it used to drop back into the copy, ride into frame in the middle of the
+// page, and snap onto its anchor at the landing. Stowed keeps it detached and
+// simply invisible until there is somewhere real to put it.
+const uplinkWrap=$('.uplink'),uplinkBtn=$('.uplink-hotspot');
+const UPLINK_SECTION=sections.findIndex(s=>s.id==='contact');
+// A move of any kind: the copy underneath is being transformed, or the screen
+// belongs to a flight or a panel. Nothing pinned can be placed during one.
+const moving=()=>!!(transition||zoom||detail);
+// Stowed is only ever the answer to a move. Settled and still unplaceable —
+// no fabric, a frame too small, a projection that failed — falls back into the
+// copy, because a control nobody can reach is worse than one in the wrong place.
+function pinState(wrap,live,canPin){
+ wrap.classList.toggle('is-live',live);
+ wrap.classList.toggle('is-stowed',canPin&&!live&&moving());
+}
+function placeUplink(){
+ if(!uplinkWrap||!uplinkBtn)return;
+ const canPin=!!renderer&&!renderFailed;
+ const p=canPin&&current===UPLINK_SECTION&&!moving()?renderer.project(UPLINK_ANCHOR):null;
+ // Pinned where the beacon is, but never past the edges: the rail owns the
+ // right of the frame, and a button half off the bottom cannot be pressed.
+ const live=!!p&&p.x>-W*.2&&p.x<W*1.2&&p.y>-H*.2&&p.y<H*1.2;
+ if(live){
+  const x=clamp(p.x,40,Math.max(40,W-128)),y=clamp(p.y,68,Math.max(68,H-Math.max(80,H*.11)));
+  uplinkBtn.style.transform='translate3d('+x.toFixed(1)+'px,'+y.toFixed(1)+'px,0) translate(-50%,-50%)';
+ }else uplinkBtn.style.transform='';
+ pinState(uplinkWrap,live,canPin);
+}
+
+// ---- contact ports ---------------------------------------------------------
+// The same pinning as the beacon, for the row of contact icons — but the row
+// is a group, so it is placed as one. Per-icon clamping would let two of them
+// squeeze together against an edge, and a row whose spacing changes is a row
+// that has stopped standing on anything. So the whole group takes a single
+// shift or none at all, and the gaps between icons stay the fabric's.
+const contactRow=$('.contact-icons');
+const contactIcons=contactRow?[...contactRow.querySelectorAll('.contact-icon')]:[];
+// The right edge belongs to the section rail; the bottom is where a tap goes
+// unread on a phone. Left and top just keep the row clear of the frame.
+const PIN_L=52,PIN_R=138,PIN_T=92,PIN_B=96;
+function placeContacts(){
+ if(!contactRow||contactIcons.length!==CONTACT_ANCHORS.length)return;
+ // Below this the row has to hold five icons across a frame that cannot give
+ // them honest spacing, so it goes back to being a row in the copy instead of
+ // a group of pins fighting each other for room.
+ const canPin=!!renderer&&!renderFailed&&W>=1000&&H>=620&&W/H>=1.2;
+ const on=canPin&&current===UPLINK_SECTION&&!moving();
+ let pts=on?CONTACT_ANCHORS.map(a=>renderer.project(a)):null;
+ if(pts&&pts.some(p=>!p))pts=null;
+ if(pts){
+  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+  const over=PIN_L-Math.min(...xs),under=(W-PIN_R)-Math.max(...xs);
+  const dx=over>0?over:under<0?under:0;
+  const above=PIN_T-Math.min(...ys),below=(H-PIN_B)-Math.max(...ys);
+  const dy=above>0?above:below<0?below:0;
+  pts.forEach((p,i)=>{
+   contactIcons[i].style.transform='translate3d('+(p.x+dx).toFixed(1)+'px,'+(p.y+dy).toFixed(1)+'px,0) translate(-50%,-50%)';
+  });
+ }else contactIcons.forEach(b=>{b.style.transform='';});
+ pinState(contactRow,!!pts,canPin);
+}
+// The two are always placed together: they share a frame, a section and the
+// same set of reasons to let go of the fabric.
+function placePinned(){placeUplink();placeContacts();}
 
 sections.forEach(s=>s.tabIndex=-1);
 try{renderer=createPackage($('#packageCanvas'));}catch(e){renderFailed=true;console.warn('Compute renderer unavailable; using direct section navigation.',e);}

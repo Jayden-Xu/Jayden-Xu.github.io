@@ -133,6 +133,13 @@
 
   .idx{ font-family:var(--font-mono); color:var(--accent-warm); font-size:var(--fs-meta); display:block; margin-bottom:clamp(.5rem,1.5vh,.875rem); }
 
+  /* Off the screen, still in the accessibility tree: a section that has dropped
+     its visible heading still needs a name to be announced by. */
+  .visually-hidden{
+    position:absolute; width:1px; height:1px; margin:-1px; padding:0; border:0;
+    overflow:hidden; clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap;
+  }
+
   h2{
     font-family:var(--font-mono); font-weight:600; font-size:var(--fs-heading); color:var(--text);
     letter-spacing:0.02em;
@@ -237,41 +244,168 @@
   .edu-degree{ color:var(--text-dim); font-size:var(--fs-note); margin-top:2px; }
   .edu-dates{ font-family:var(--font-mono); font-size:var(--fs-meta); color:var(--text-dim); white-space:normal; }
 
-  /* CONTACT */
+  /* CONTACT — not a panel of buttons any more. Each icon is pinned to the lit
+     node on top of its own post in the I/O district (see placeContacts in
+     home.js), so the row stands in the fabric and drifts with the camera. No
+     frame and no heading: the glyph is the label, and the structure under it
+     is the rest. In flow by default, and back in flow whenever the frame is
+     too small to give five pins honest spacing. */
   .contact-icons{ display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:clamp(1.5rem,3vh,2rem) var(--contact-gap); margin:1.25rem auto 0; }
+  /* Detached from the copy. `is-live` is placed on its nodes; `is-stowed` is
+     the same detachment with nowhere to stand yet — a page turn, a dive — so
+     the row waits it out instead of riding into frame in the middle of the
+     page and snapping onto the fabric at the landing. */
+  .contact-icons.is-live, .contact-icons.is-stowed{ display:block; margin:0; height:0; }
+  .contact-icons.is-live .contact-icon, .contact-icons.is-stowed .contact-icon{
+    position:fixed; left:0; top:0; z-index:11; will-change:transform;
+  }
+  .contact-icons.is-stowed .contact-icon{ opacity:0; pointer-events:none; }
   .contact-icon{
-    position:relative; width:var(--contact-size); height:var(--contact-size); flex:none; padding:0; border-radius:3px;
-    border:1px solid var(--rule); background:transparent; color:var(--text-dim);
+    position:relative; width:var(--contact-size); height:var(--contact-size); flex:none; padding:0;
+    border:0; background:none; color:rgba(232,150,61,.92);
     display:flex; align-items:center; justify-content:center; cursor:pointer;
-    box-shadow:none;
-    transition: color .25s ease, border-color .25s ease, background-color .25s ease, box-shadow .25s ease, transform .15s;
+    -webkit-tap-highlight-color:transparent;
+    transition: color .25s ease, opacity .3s ease;
   }
-  /* Same two levels as .detail-head, but the first one is spent by arriving:
-     the section being the one on screen is what wakes its controls, so they are
-     already lit by the time the pointer moves. The glow still belongs to the
-     single icon being aimed at — that is the part hover is needed for. */
-  #contact.is-active .contact-icon:not(:hover):not(:focus-visible),
-  html:not(.enhanced) .contact-icon:not(:hover):not(:focus-visible){
-    color:rgba(232,150,61,.9); border-color:rgba(232,150,61,.45);
+  /* Frosted disc under each glyph. The wireframe behind is bright line work on
+     black, which a thin orange glyph disappears into; the frost gives every
+     icon its own quiet ground without putting a box back. Feathered with a
+     radial mask so tint and blur end together and no edge is drawn.
+     NB the glow lives on the svg, not here: a filter on this button would make
+     it a backdrop root and leave backdrop-filter nothing to sample. */
+  .contact-icon::before{
+    content:""; position:absolute; inset:-7px; z-index:-1; pointer-events:none; border-radius:50%;
+    background:rgba(7,11,16,.62);
+    backdrop-filter:blur(9px) saturate(.85);
+    -webkit-backdrop-filter:blur(9px) saturate(.85);
+    -webkit-mask-image:radial-gradient(circle at 50% 50%,#000 44%,rgba(0,0,0,.72) 68%,transparent 100%);
+    mask-image:radial-gradient(circle at 50% 50%,#000 44%,rgba(0,0,0,.72) 68%,transparent 100%);
   }
-  .contact-icon:hover, .contact-icon:focus-visible{
-    color:#ffd1a0; border-color:rgba(232,150,61,.62); background:rgba(232,150,61,.08);
-    box-shadow:0 0 20px -5px rgba(232,150,61,.6), inset 0 0 14px -8px rgba(232,150,61,.9);
+  /* Lit at rest, always — and not only on the section it belongs to. A contact
+     detail that has to be hovered before it can be found is one nobody finds;
+     hover is the aim, never the reveal. */
+  .contact-icon:hover, .contact-icon:focus-visible{ color:#ffd1a0; }
+  /* Scale and glow ride the glyph, not the button: while the row is pinned the
+     button's own transform is the projection, written inline every frame. */
+  .contact-icon svg{
+    width:52%; height:52%;
+    filter:drop-shadow(0 0 6px rgba(232,150,61,.42));
+    transition:transform .15s ease, filter .25s ease;
   }
-  .contact-icon:active{ transform:scale(0.94); }
-  .contact-icon svg{ width:44%; height:44%; }
+  .contact-icon:hover svg, .contact-icon:focus-visible svg{
+    transform:scale(1.1); filter:drop-shadow(0 0 13px rgba(232,150,61,.85));
+  }
+  .contact-icon:active svg{ transform:scale(0.9); }
   a.contact-icon:hover{text-decoration:none;}
   .contact-icon-badge{
-    position:absolute; bottom:2px; right:1px;
+    position:absolute; bottom:1px; right:0;
     font-family:var(--font-mono); font-size:clamp(.625rem,.6rem + .04vw,.75rem); font-weight:600; letter-spacing:0.01em;
-    color:inherit; background:var(--bg); padding:0 2px; border-radius:2px; line-height:1.3;
+    color:inherit; line-height:1.3; text-shadow:0 1px 3px #000, 0 0 5px #000;
   }
+  /* A dive takes the screen, exactly as it does for the beacon. */
+  html.detail-open .contact-icons{ display:none; }
+  /* The loud part of a copy is no longer here — the press fires a front through
+     the fabric itself (see fireBurst in home.js), and that is what carries the
+     confirmation. So the word goes back to being a readout: mono, tracked out,
+     under a hairline that draws itself, in the same voice as every other small
+     label on the page. A filled badge shouted over the line work and read as
+     something bought off a shelf rather than machined for this. */
   .copied-tip{
-    position:absolute; bottom:-28px; left:50%; transform:translateX(-50%);
-    font-family:var(--font-mono); font-size:var(--fs-tag); color:var(--accent-warm);
-    opacity:0; transition:opacity .2s; white-space:nowrap; pointer-events:none;
+    position:absolute; top:calc(100% + 8px); left:50%;
+    font-family:var(--font-mono); font-size:var(--fs-tag); font-weight:500;
+    letter-spacing:.16em; text-transform:uppercase; line-height:1; white-space:nowrap;
+    color:#ffdcb4; padding-top:7px;
+    text-shadow:0 0 14px rgba(232,150,61,.6), 0 1px 4px #000, 0 0 5px #000;
+    opacity:0; transform:translate(-50%,-4px);
+    transition:opacity .22s ease, transform .22s ease;
+    pointer-events:none;
   }
-  .copied-tip.show{ opacity:1; }
+  /* The rule opens from its centre as the word arrives, so the receipt is drawn
+     rather than switched on. */
+  .copied-tip::before{
+    content:""; position:absolute; left:-2px; right:-2px; top:0; height:1px;
+    background:linear-gradient(90deg,transparent,rgba(232,150,61,.9),transparent);
+    transform:scaleX(.15); transform-origin:50% 50%;
+    transition:transform .34s cubic-bezier(.2,.75,.3,1);
+  }
+  .copied-tip.show{ opacity:1; transform:translate(-50%,0); }
+  .copied-tip.show::before{ transform:scaleX(1); }
+  /* The icon answers too, so the confirmation also lands at the point the
+     pointer is already looking at. */
+  .contact-icon:has(.copied-tip.show){ color:#ffd9b0; }
+  .contact-icon:has(.copied-tip.show) svg{ filter:drop-shadow(0 0 16px rgba(232,150,61,.95)); }
+  /* Clipboard refused: the tip is carrying the address itself so it can be
+     selected by hand, and it stays up. Sentence case and normal tracking,
+     because this one is meant to be read and copied, not glanced at. */
+  .copied-tip.is-manual{
+    text-transform:none; letter-spacing:.02em;
+    color:#ffd1a0; background:rgba(7,11,16,.92);
+    border:1px solid rgba(232,150,61,.42); border-radius:2px; padding:4px 9px;
+    user-select:text; -webkit-user-select:text; pointer-events:auto;
+  }
+  .copied-tip.is-manual::before{ display:none; }
+
+  /* PAIRED UPLINK — the one component of the I/O district that is not mine.
+     No label and no frame: a node lit the way the fabric lights its own, so
+     it reads as something standing in the model rather than as a control laid
+     over it. In flow by default; home.js lifts it onto the beacon it names
+     (see placeUplink) once there is a fabric to stand on, and the wrapper
+     collapses so nothing is left behind in the copy. */
+  .uplink{ display:flex; justify-content:center; margin-top:clamp(1.25rem,4vh,2rem); }
+  .uplink.is-live, .uplink.is-stowed{ margin:0; height:0; }
+  .uplink.is-live .uplink-hotspot, .uplink.is-stowed .uplink-hotspot{
+    position:fixed; left:0; top:0; z-index:11; will-change:transform;
+  }
+  /* Same waiting room as the contact row: detached, and invisible until the
+     move it cannot be placed during is over. */
+  .uplink.is-stowed .uplink-hotspot{ opacity:0; pointer-events:none; }
+  .uplink-hotspot{
+    display:inline-flex; align-items:center; justify-content:center; flex:none;
+    width:44px; height:44px; padding:0; cursor:pointer;
+    background:none; border:0; color:var(--accent-warm);
+    -webkit-tap-highlight-color:transparent;
+    transition:opacity .3s ease;
+  }
+  /* The hit area is 44px of nothing, so the ring goes on the node itself. */
+  .uplink-hotspot:focus-visible{ outline:none; }
+  .uplink-hotspot:focus-visible .uplink-beacon{ outline:1px solid var(--accent-warm); outline-offset:5px; }
+  .uplink-beacon{
+    position:relative; width:8px; height:8px; flex:none;
+    background:var(--accent-warm); transform:rotate(45deg);
+    opacity:.62; box-shadow:0 0 9px 1px rgba(232,150,61,.34);
+    animation:uplink-breathe 3.6s ease-in-out infinite;
+  }
+  /* A front leaving the node, on the same clock as the breath: the same
+     figure the fabric draws when a signal starts somewhere. */
+  .uplink-beacon::after{
+    content:""; position:absolute; inset:-6px; border:1px solid rgba(232,150,61,.5);
+    opacity:0; animation:uplink-ping 3.6s ease-out infinite;
+  }
+  .uplink-hotspot:hover .uplink-beacon, .uplink-hotspot:focus-visible .uplink-beacon{
+    opacity:1; box-shadow:0 0 20px 4px rgba(232,150,61,.7); animation:none;
+  }
+  .uplink-hotspot:hover .uplink-beacon::after{ animation-duration:1.5s; }
+  .uplink-hotspot:active .uplink-beacon{ transform:rotate(45deg) scale(.86); }
+  @keyframes uplink-breathe{
+    0%,100%{ opacity:.46; box-shadow:0 0 7px 1px rgba(232,150,61,.26); }
+    50%{ opacity:.96; box-shadow:0 0 17px 3px rgba(232,150,61,.62); }
+  }
+  @keyframes uplink-ping{
+    0%{ transform:scale(.55); opacity:.5; }
+    70%{ transform:scale(1.75); opacity:0; }
+    100%{ opacity:0; }
+  }
+  @media(prefers-reduced-motion:reduce){
+    .uplink-beacon{ animation:none; opacity:.85; box-shadow:0 0 12px 2px rgba(232,150,61,.45); }
+    .uplink-beacon::after{ animation:none; opacity:.3; }
+  }
+  /* A dive takes the screen: the node is the thing being flown to, so it
+     cannot also be sitting on top of the flight. */
+  html.detail-open .uplink{ display:none; }
+  /* No script: the flight cannot happen, so the long form and its link stay
+     on the page and the control that would trigger it is not offered. */
+  html:not(.enhanced) .uplink-hotspot{ display:none; }
+  html:not(.enhanced) .uplink{ display:block; }
 
 
   /* The model never takes over the screen; content simply slides across it. */
@@ -365,6 +499,10 @@
   }
   .section.is-active .section-inner::before{ opacity:1; }
   html:not(.enhanced) .section-inner::before{ opacity:1; }
+  /* Contact has no copy left to hold the fabric down behind — the ports and
+     the beacon are the whole of the section — so the panel has nothing to do
+     but sit there as a black rectangle over the district. */
+  #contact .section-inner::before{ display:none; }
   @media (prefers-reduced-motion: reduce){ .section-inner::before{ transition:none; } }
   @media (max-width:40em){
     .section-inner::before{ inset:-1.25rem -1rem; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
@@ -481,6 +619,7 @@
   }
   .detail-links{ display:inline-flex; align-items:center; gap:.5rem; }
   .detail-meta{ font-family:var(--font-mono); font-size:var(--fs-meta); color:var(--text-dim); margin-top:4px; }
+  .detail-meta:empty{ display:none; }
   .detail-body{
     flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain;
     scrollbar-width:thin; scrollbar-color:#303640 transparent;
@@ -516,6 +655,22 @@
     color:#ffd1a0; border-color:rgba(232,150,61,.62); background:rgba(232,150,61,.08);
     box-shadow:0 0 20px -5px rgba(232,150,61,.6), inset 0 0 14px -8px rgba(232,150,61,.9);
     text-decoration:none;
+  }
+
+  /* The way out of the uplink panel, and the only link on the page that leaves
+     it. A real anchor pressed by a real click, so no popup blocker is involved. */
+  .detail-cta{
+    display:inline-flex; align-items:center; gap:.6rem;
+    margin-top:clamp(1rem,3vh,1.5rem); min-height:40px; padding:7px 14px;
+    font-family:var(--font-mono); font-size:var(--fs-tag); letter-spacing:.06em; text-transform:uppercase;
+    color:rgba(232,150,61,.78); border:1px solid rgba(232,150,61,.28); border-radius:3px;
+    transition:color .25s ease, border-color .25s ease, background-color .25s ease, box-shadow .25s ease;
+  }
+  .detail-cta svg{ width:16px; height:16px; flex:none; }
+  .detail-cta-arrow{ opacity:.65; }
+  .detail-cta:hover, .detail-cta:focus-visible{
+    color:#ffd1a0; border-color:rgba(232,150,61,.62); background:rgba(232,150,61,.08);
+    box-shadow:0 0 20px -5px rgba(232,150,61,.6), inset 0 0 14px -8px rgba(232,150,61,.9); text-decoration:none;
   }
 
   .detail-close{
